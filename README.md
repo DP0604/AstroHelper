@@ -10,6 +10,9 @@ To get started you should call the function ```getStarted()```. There a brief ex
 
 Currently this code is only a Jupyter-notebook. In the near future it should become a library and will be uploaded to the PyPi index.
 
+### Future
+For now the idea is to test the code, privately, then to transform it into a .py file. The next milestone is for it to become a python package so that it can be imported. The large goal is to create a GUI for users to not rely on code but a more intuitive design. Side quest is to create user submissions for photos which are then displayed alongside the approximate size of the object in the FOV.
+
 ## Contributing
 We welcome contributions to develop the code further and create a better tool for the users. If you want to contribute pull requests are welcome. For pull requests please use the template!
 
