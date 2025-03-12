@@ -1,5 +1,28 @@
+import numpy as np
+from astropy.time import Time
+from astroquery.simbad import Simbad
+from astroplan import Observer
+from astropy.coordinates import Angle, EarthLocation, AltAz, SkyCoord
+import astropy.units as u
+from astropy.time import Time
+import matplotlib.pyplot as plt
+import matplotlib.dates as mdates
+import matplotlib.colors as mcolors
+from matplotlib.patches import Ellipse
+from matplotlib.colors import Normalize
+from matplotlib.ticker import FixedLocator
+from matplotlib.lines import Line2D
+# import datetime
+from datetime import datetime, timedelta
+from scipy.interpolate import griddata
+import pytz
+import calendar
+import cartopy.crs as ccrs
+from cartopy.mpl.ticker import LatitudeFormatter, LongitudeFormatter
+import inspect
+
 def getStarted():
-    WelcomeMessage = """Welcome to the AstroObjectHelperPipeline! This code is still in experimental mode! This is a short introduction to the code with all the relevant data. First of all, you will need to define your observation location. To do this, please define the variables `Lon` (Longitude in degrees), `Lat` (Latitude in degrees), `ele` (elevation in metres) as well as the observations date in format `"YYYY-MM-DD"` and your timezone with `"Europe/Berlin"` (watch out! you need quotation marks due to the date and timezone being a string). If you have your coordinates in any other format please us the helper functions below to transform to degrees! Next call the function `TelescopeData` and input the necessary parameters of your telescope so that other functions work! If there is a typo in the variable names or if you just want to experiment with the standard values, the geographic location used without input is the Dr. Remeis Observatory in Bamberg, Germany as the seat of the astronomical institute of the Friedrich-Alexander University Erlangen-Nuremberg with data of Lon: 10.88846, Lat: 49.88474, ele: 282 (°, °, m).
+    WelcomeMessage = """Welcome to the AstroHelper! This code is still in experimental mode! This is a short introduction to the code with all the relevant data. First of all, you will need to define your observation location. To do this, please define the variables `Lon` (Longitude in degrees), `Lat` (Latitude in degrees), `ele` (elevation in metres) as well as the observations date in format `"YYYY-MM-DD"` and your timezone with `"Europe/Berlin"` (watch out! you need quotation marks due to the date and timezone being a string). If you have your coordinates in any other format please us the helper functions below to transform to degrees! Next call the function `TelescopeData` and input the necessary parameters of your telescope so that other functions work! If there is a typo in the variable names or if you just want to experiment with the standard values, the geographic location used without input is the Dr. Remeis Observatory in Bamberg, Germany as the seat of the astronomical institute of the Friedrich-Alexander University Erlangen-Nuremberg with data of Lon: 10.88846, Lat: 49.88474, ele: 282 (°, °, m).
     
     Now let's get to business. Below is a list of all relevant functions and a short description. We wish you a lot of fun using the code!
     
@@ -20,13 +43,17 @@ def dms_to_deg(d: float, m: float, s: float) -> float:
     
     Parameters
     ----------
-    d : float, Degrees
-    m : float, Minutes
-    s : float, Seconds
+    d : float
+        Degrees
+    m : float
+        Minutes
+    s : float
+        Seconds
     
     Returns
-    ----------
-    degrees : float, d:m:s in decimal degrees"""
+    -------
+    float
+        d:m:s in decimal degrees"""
     if d == 0:
         degrees =(np.abs(d) + m/60 + s/3600)
     else:
@@ -38,13 +65,13 @@ def deg_to_dms(degrees: float) -> tuple[int, int, float]:
     
     Parameters
     ----------
-    degrees : float, Angle in degrees
+    degrees : float
+        Angle in degrees
     
     Returns
-    ----------
-    d : int, Degrees
-    m : int, Minutes
-    s : float, Seconds
+    -------
+    tuple[int, int, float]
+        Degrees, minutes, seconds
     """
     deg=np.abs(degrees)
     d=np.round(np.floor(deg)*degrees/deg,0)
@@ -56,13 +83,17 @@ def hms_to_deg(h: float, m: float, s: float) -> float:
     """ This function takes coordinates in the format of hours:minute:second and calculates into decimal degrees.
     Parameters
     ----------
-    h : float, Hours
-    m : float, Minutes
-    s : float, Seconds
+    h : float
+        Hours
+    m : float
+        Minutes
+    s : float
+        Seconds
 
     Returns
-    ----------
-    degrees : float, h:m:s in decimal degrees
+    -------
+    float
+        h:m:s in decimal degrees
     """
     if h == 0:
         degrees = 15*(np.abs(h) + m/60 + s/3600)
@@ -75,13 +106,13 @@ def H_to_hms(H: float) -> tuple[int, int, float]:
     
     Parameters
     ----------
-    H : float, Hours
+    H : float
+        Hours
         
     Returns
-    ----------
-    h : int, Hours
-    m : int, Minutes
-    s : float, Seconds
+    -------
+    tuple[int, int, float]
+        Hours, minutes, seconds
     """
     h=np.floor(H)
     m=np.floor((H-h)*60)
@@ -93,11 +124,13 @@ def deg_to_rad(degrees: float) -> float:
     
     Parameters
     ----------
-    degrees : float, Angle in degrees
+    degrees : float
+        Angle in degrees
     
     Returns
-    ----------
-    rad : float, Angle in radians
+    -------
+    float
+        Angle in radians
     """
     rad = degrees * np.pi/180
     return rad
@@ -107,17 +140,32 @@ def rad_to_deg(rad: float) -> float:
     
     Parameters
     ----------
-    rad : float, Angle in radians
+    rad : float
+        Angle in radians
 
     Returns
-    ----------
-    degrees : float, Converted angle
+    -------
+    float
+        Converted angle
     """
     degrees = rad * 180/np.pi
     return degrees
 
 
 def Surface_Brightness(objects: np.ndarray) -> np.ndarray:
+    """
+    This function calculates the surface brightness of the object
+
+    Parameters
+    ----------
+    objects : np.ndarray
+        array of objects with data
+
+    Returns
+    -------
+    np.ndarray
+        array with surface brightness data
+    """    
     results = []
     
     for n in range(len(objects)):
@@ -148,20 +196,28 @@ def Surface_Brightness(objects: np.ndarray) -> np.ndarray:
     return data_arr_Sb
 
 
-def Az_Alt(zeit_jd: float,ra_deg: float,dec_deg: float) -> tuple[float, float]:
-    """This function converts equatorial coordinates (RA,DEC) into horizontal coordinates (Alt,Az) for a given time.
-    
+def Az_Alt(zeit_jd: float, ra_deg: float, dec_deg: float, Lon: float = 10.88846, Lat: float = 49.88474) -> tuple[float, float]:
+    """
+    This function converts equatorial coordinates (RA,DEC) into horizontal coordinates (Alt,Az) for a given time.
+
     Parameters
     ----------
-    zeit_jd : float, Time in Julian date
-    ra_deg : float, Right ascension in degrees
-    dec_deg : float, Declination in degrees
+    zeit_jd : float
+        Time in Julian date
+    ra_deg : float
+        Right ascension in degrees
+    dec_deg : float
+        Declination in degrees
+    Lon : float, optional
+        Longitude of your observation point, by default 10.88846 (Dr. Remeis Observatory)
+    Lat : float, optional
+        Latitude of your observation point, by default 49.88474 (Dr. Remeis Observatory)
 
     Returns
-    ----------
-    Azimuth : float, Azimuth of given position in degrees
-    Altitude : float, Altitude of given position in degrees
-    """   
+    -------
+    tuple[float, float]
+        Azimuth of given position in degrees, Altitude of given position in degrees
+    """
 
     pi=np.pi
     lat = deg_to_rad(Lat)
@@ -187,27 +243,34 @@ def Az_Alt(zeit_jd: float,ra_deg: float,dec_deg: float) -> tuple[float, float]:
     A_deg = rad_to_deg(A)
     return A_deg, H_deg
 
-def zenith_distance(Altitude: float):
-    """Calculates the distance from the Zenith for a given Altitude.
+def zenith_distance(Altitude: float) -> float:
+    """
+    Calculates the distance from the Zenith for a given Altitude.
+
     Parameters
     ----------
-    Altitude: float, Altitude in degrees
-    Returns:
-    ----------
-    Zenith distance: float, Distance from Zenith in degrees
+    Altitude : float
+        Altitude in degrees
+
+    Returns
+    -------
+    float
+        Distance from zenith
     """
     z=90-Altitude
     return z
-
+    
 def extract_messier_name(object_ids):
-    """Checks if an object's ID list contains a Messier name.
+    """
+    Check if an object's ID list contains a Messier name.
 
     Calls an object -> splits the name using the delimiter '|' used by SIMBAD
-    -> checks if there is an "Messier" or "M " name in the list -> filters the object out of the list
+    -> strips the white spaces -> checks if there is an "Messier" or "M" -> filters the object out of the list
 
     Parameters
     ----------
-    object_ids : list, List of object IDs
+    object_ids : list
+        List of object IDs
     """
     if object_ids is None:
         return None  # No IDs available
@@ -220,14 +283,16 @@ def extract_messier_name(object_ids):
     return None
 
 def extract_NGC_name(object_ids):
-    """Check if an object's ID list contains a NGC name.
-    
+    """
+    Check if an object's ID list contains a NGC name.
+
     Calls an object -> splits the name using the delimiter '|' used by SIMBAD
     -> strips the white spaces -> checks if there is an "NGC" -> filters the object out of the list
-    
+
     Parameters
     ----------
-    object_ids : list, List of object IDs
+    object_ids : list
+        List of object IDs
     """
     if object_ids is None:
         return None  # No IDs available
@@ -239,15 +304,17 @@ def extract_NGC_name(object_ids):
     
     return None
 
-def extract_IC_name(object_ids):
-    """Check if an object's ID list contains a IC name.
-    
+def extract_IC_name(object_ids: list) -> None:
+    """
+    Check if an object's ID list contains a IC name.
+
     Calls an object -> splits the name using the delimiter '|' used by SIMBAD
     -> strips the white spaces -> checks if there is an "IC" -> filters the object out of the list
-    
+
     Parameters
     ----------
-    object_ids: list, List of object IDs
+    object_ids : list
+        List of object IDs
     """
     if object_ids is None:
         return None  # No IDs available
@@ -259,20 +326,26 @@ def extract_IC_name(object_ids):
     
     return None
 
- 
-def Simbad_extraction(objects: list, name: str, batch_size: int = 200) -> np.ndarray:
-    """This function conducts a query of SIMBAD. It pulls the data for RA, DEC, dimensions, flux and morphological type. Then it creates a list of all objects. The list of objects is saved as ```[name].txt```
-    
+
+def Simbad_extraction(objects: list, name: str, batch_size: int=200) -> np.ndarray:
+    """
+    This function conducts a query of SIMBAD. It pulls the data for RA, DEC, dimensions, flux and morphological type. Then it creates a list of all objects. The list of objects is saved as ```[name].txt```
+
     Parameters
     ----------
-    objects : list, A list of all objects
-    name : str, Name of list to be saved as `[name].txt`
-    batch_size : int, size over which loop iterates
+    objects : list
+        A list of all objects
+    name : str
+        Name of list to be saved as `[name].txt`
+    batch_size : int, optional
+        size over which loop iterates, by default 200
 
     Returns
-    ----------
-    data_npar : 6darray, NumPy array consisting of data of the filtered objects
+    -------
+    np.ndarray
+        NumPy array consisting of data of the filtered objects
     """
+    
     # Clear cache to avoid stale results
     Simbad.clear_cache()
 
@@ -341,12 +414,15 @@ def load_variable_column_file(filename: str) -> np.ndarray:
 
     Parameters
     ----------
-    filename : str, Name of the file in form of `[NAME_OF_FILE].txt`
+    filename : str
+        Name of the file in form of `[NAME_OF_FILE].txt`
 
     Returns
-    ----------
-    data_padded_nparr : 7darray str, Padded data from `.txt` file as NumPy array with elements as strings.
+    -------
+    np.ndarray
+        Padded data from `.txt` file as NumPy array with elements as strings
     """
+    
 
     with open(filename, "r") as f:
         lines = [line.strip().split() for line in f if not line.startswith("#")]
@@ -361,18 +437,21 @@ def load_variable_column_file(filename: str) -> np.ndarray:
     data_padded_nparr = np.array(data_padded, dtype=str)
     return data_padded_nparr
 
-def Galaxies(Objects: list) -> tuple[np.ndarray, np.ndarray]:
+def Galaxies(Objects: list) -> tuple[list, list]:
     """
     This function filters a list of objects by the condition of "Galaxy".
 
     Parameters
     ----------
-    Objects : list, List of objects
+    Objects : list
+        List of objects
 
     Returns
-    ----------
-    Objects_gal : array str, List of all galaxies
+    -------
+    tuple[list, list]
+        list with objects which are galaxies and a list witch are not galaxies
     """
+    
     no_gal = []
 
     is_galaxy = Objects[:, -1] != "NaN"
@@ -382,13 +461,6 @@ def Galaxies(Objects: list) -> tuple[np.ndarray, np.ndarray]:
     Objects_not_gal = Objects[~is_galaxy]
 
     return Objects_gal, Objects_not_gal
-
-
-fl = 750
-Ps = 4.30
-x_ax = 5184
-y_ax = 3456
-Dia = np.sqrt((x_ax)**2+(y_ax)**2)
 
 def TelescopeData(FocalLength: float = 750, PixelSize: int = 4.30, x_Pixels: int = 5184, y_Pixels: int = 3456):
     """
@@ -400,14 +472,19 @@ def TelescopeData(FocalLength: float = 750, PixelSize: int = 4.30, x_Pixels: int
     y_ax = 3456
     ```
     with the variables corresponding to those needed for the function. The values provided here are the standard values
-
+    
     Parameters
     ----------
-    FocalLength : float, Focal Length of the telescope
-    PixelSize : float, pixel size of your sensor in μm
-    x_Pixels : int, number of pixels in your camera on the length
-    y_Pixels : int, number of pixels in your camera on the width
+    FocalLength : float, optional
+        Focal Length of the telescope, by default 750
+    PixelSize : int, optional
+        pixel size of your sensor in μm, by default 4.30
+    x_Pixels : int, optional
+        number of pixels in your camera on the length, by default 5184
+    y_Pixels : int, optional
+        number of pixels in your camera on the width, by default 3456
     """
+    
     global fl
     fl = FocalLength
 
@@ -429,11 +506,13 @@ def Fov(L: float) -> float:
 
     Parameters
     ----------
-    L : float, Length of the telescope
+    L : float
+        Length of the telescope
 
     Returns
-    ----------
-    FOV : float, Field-of-View
+    -------
+    float
+        Field-of-View
     """
     return (206.2648 * (Ps/fl) * L)/60
 
@@ -444,18 +523,24 @@ def safe_convert(val):
     except ValueError:
         return np.nan
 
+
 def ratio(object_arr: np.ndarray, min_frac: float = 0.08, Remove_NaN: bool = 1) -> np.ndarray:
     """
     This function filters the array with objects with respect to their ratio to the diagonal of the FOV. If the major or the minor axis of an object are larger than the set hurdle (standard is `0.1*x_FOV` and `0.1*y_FOV` respectively) they are left in the array, else they are filtered out.
 
     Parameters
     ----------
-    object_arr : 2darray, array of objects
-    min_frac : float, minimum fraction object should take up in the FOV
+    object_arr : np.ndarray
+        array of objects
+    min_frac : float, optional
+        minimum fraction object should take up in the FOV, by default 0.08
+    Remove_NaN : bool, optional
+        removing objects with either maj_ax or min_ax value NaN, by default 1
 
     Returns
-    ----------
-    object_arr[mask] : 2darray, masked array of objects
+    -------
+    np.ndarray
+        masked array of objects
     """
     
     x_FOV = Fov(x_ax)
@@ -477,17 +562,33 @@ def Ratio(object_row: np.ndarray) -> float:
 
     Parameters
     ----------
-    object_row : array, array of object data
+    object_row : np.ndarray
+        array of object data
 
     Returns
-    ----------
-    Diagonal/FOV : float, percentage
+    -------
+    float
+        ratio of diagonal to FOV-diagonal in percent
     """
     FOV = Fov(Dia)
     Diagonal = np.sqrt(float(object_row[4])**2+float(object_row[5])**2)
     return Diagonal/FOV
 
-def min_zenith_distance(dec_deg: float) -> float:
+def min_zenith_distance(dec_deg: float, Lat: float) -> float:
+    """ JUSTUS
+
+    Parameters
+    ----------
+    dec_deg : float
+        Declination in degrees
+    Lat : float, optional
+        Latitude of observation point, by default 49.88474 (Dr. Remeis Observatory)
+
+    Returns
+    -------
+    float
+        minimal zenith distance for each object
+    """
     dec = deg_to_rad(dec_deg)
     phi = deg_to_rad(Lat)
     H_ex_1 = np.arcsin(np.cos(phi-dec))
@@ -501,11 +602,27 @@ def min_zenith_distance(dec_deg: float) -> float:
         z = zenith_distance(H_EX_2)
     return z
 
-def min_zenith_filter(data_FOV, baseline: float = 40) -> np.ndarray:
+def min_zenith_filter(data_FOV: np.ndarray, Lat: float, baseline: float = 40,) -> np.ndarray:
+    """ This function filters objects by their minimal zenith distance. JUSTUS
+
+    Parameters
+    ----------
+    data_FOV : np.ndarray
+        array of objects in the FOV
+    Lat : float, optional
+        Latitude of observation point, by default 49.88474 (Dr. Remeis Observatory)
+    baseline : float, optional
+        minimal zenith distance, by default 40
+
+    Returns
+    -------
+    np.ndarray
+        _description_
+    """
     min_zen_dis = []
 
     for n in range(len(data_FOV[:,1])):
-        z = min_zenith_distance(float(data_FOV[n,2]))
+        z = min_zenith_distance(float(data_FOV[n,2]), Lat)
         min_zen_dis.append(z)
     Z_s = np.array(min_zen_dis)
 
@@ -517,24 +634,39 @@ def min_zenith_filter(data_FOV, baseline: float = 40) -> np.ndarray:
 
     return np.delete(data_FOV, indices_to_del, 0)
 
-def time_over_x_filter(data: np.ndarray, Altitude_Threshold: float = 30, Time_Threshold: float = 120) -> np.ndarray:
+def time_over_x_filter(data: np.ndarray, obs_date: str, timezone: str, Lon: float = 10.88846, Lat: float = 49.88474, ele: float = 282, Altitude_Threshold: float = 30, Time_Threshold: float = 120) -> np.ndarray:
     """
-    This function deletes all objects inside a list which are not visible for obs_time minutes over the Altitude_Threshold.
+    This function deletes all objects inside a list which are not visible for Time_Threshold minutes over the Altitude_Threshold.
+
 
     Parameters
     ----------
-    data : np.ndarray, 2darray of objects
-    Altitude_Threshold : float, minimum Altitude the object must be above (recommended: 30°)
-    Time_Threshold : float, minimum duration in which the object is above Altitude_Threshold (in minutes, recommended 120)
+    data : np.ndarray
+        array of objects
+    obs_date : str
+        date of your observation in format `"YYYY-MM-DD"`
+    timezone : str
+        your timezone in format `"Europe/Berlin"`
+    Lon : float, optional
+        Longitude of observation point, by default 10.88846 (Dr. Remeis Observatory)
+    Lat : float, optional
+        Latitude of observation point, by default 49.88474 (Dr. Remeis Observatory)
+    ele : float, optional
+        elevation of observation point, by default 282 (Dr. Remeis Observatory)
+    Altitude_Threshold : float, optional
+        Minimum altitude the object must rise above, by default 30
+    Time_Threshold : float, optional
+        Minimum time the object must be above `Altitude_Threshold`, by default 120
 
     Returns
-    ----------
-    data_over_Altitude_Threshold : np.ndarray, 2darray of objects with objects deleted which don't fulfill the conditions
+    -------
+    np.ndarray
+        array with deleted data not fulfilling the conditions
     """
-    location = EarthLocation.from_geodetic(lon= Lon* u.deg, lat = Lat* u.deg, height = ele*u.m)
+    location = EarthLocation.from_geodetic(lon= Lon*u.deg, lat = Lat*u.deg, height = ele*u.m)
     observer = Observer(location=location, timezone=timezone)
 
-    date_time = Time(selected_date)
+    date_time = Time(obs_date)
     start_time_utc = observer.sun_set_time(date_time, which="nearest",horizon=-12 * u.deg)
     end_time_utc = observer.sun_rise_time(date_time, which="nearest",horizon=-12 * u.deg)
 
@@ -562,12 +694,36 @@ def time_over_x_filter(data: np.ndarray, Altitude_Threshold: float = 30, Time_Th
 
     return np.delete(data,more_del,0)
 
-def time_over_x(data: np.ndarray, Altitude_Threshold: float = 30) -> np.ndarray:
+def time_over_x(data: np.ndarray, obs_date: str, timezone: str, Lon: float = 10.88846, Lat: float = 49.88474, ele: float = 282, Altitude_Threshold: float = 30) -> np.ndarray:
+    """This function calculates the time an object is over Altitude_Threshold.
+
+    Parameters
+    ----------
+    data : np.ndarray
+        array of objects
+    obs_date : str
+        observation date in form of `"YYYY-MM-DD"`
+    timezone : str
+        your timezone in format `"Europe/Berlin"`
+    Lon : float, optional
+        Longitude of observation point, by default 10.88846 (Dr. Remeis Observatory)
+    Lat : float, optional
+        Longitude of observation point, by default 49.88474 (Dr. Remeis Observatory)
+    ele : float, optional
+        Longitude of observation point, by default 282 (Dr. Remeis Observatory)
+    Altitude_Threshold : float, optional
+        Minimum altitude the object must rise above, by default 30
+
+    Returns
+    -------
+    np.ndarray
+        appended array of objects with duration over `Altitude_Threshold` in minutes
+    """
     
     location = EarthLocation.from_geodetic(lon= Lon* u.deg, lat = Lat* u.deg, height = ele*u.m)
     observer = Observer(location=location, timezone=timezone)
 
-    date_time = Time(selected_date)
+    date_time = Time(obs_date)
     start_time_utc = observer.sun_set_time(date_time, which="nearest",horizon=-12 * u.deg)
     end_time_utc = observer.sun_rise_time(date_time, which="nearest",horizon=-12 * u.deg)
 
@@ -592,33 +748,79 @@ def time_over_x(data: np.ndarray, Altitude_Threshold: float = 30) -> np.ndarray:
     return np.append(data, data_m_arr[:, None], axis=1)
 
 
-def Final_Best(objects: np.ndarray, min_frac: float = 0.08, Altitude_Threshold: float = 30, Time_Threshold: float = 120, Only_Galaxies: bool = 0, Remove_NaN: bool = 1) -> np.ndarray:
+def Final_Best(objects: np.ndarray, obs_date: str, timezone, Lon: float = 10.88846, Lat: float = 49.88474, ele: float = 282, min_frac: float = 0.08, Altitude_Threshold: float = 30, Time_Threshold: float = 120, Only_Galaxies: bool = 0, Remove_NaN: bool = 1) -> np.ndarray:
+    """
+    This function takes in an array of objects with SIMBAD data, filters for morphological type, calculates surface brightness, ratio, filters for minimal zenith distance, time over altitude and sorts from best to worst.
+
+    Parameters
+    ----------
+    objects : np.ndarray
+        array of objects with data
+    obs_date : str
+        date of your observation in format `"YYYY-MM-DD"`
+    timezone : str
+        your timezone in format `"Europe/Berlin"`
+    Lon : float, optional
+        Longitude of observation point, by default 10.88846 (Dr. Remeis Observatory)
+    Lat : float, optional
+        Latitude of observation point, by default 49.88474 (Dr. Remeis Observatory)
+    ele : float, optional
+        elevation of observation point, by default 282 (Dr. Remeis Observatory)
+    min_frac : float, optional
+        minimal fraction of FOV, by default 0.08
+    Altitude_Threshold : float, optional
+        minimal altitude, by default 30
+    Time_Threshold : float, optional
+        minimal time over `Altitude_Threshold`, by default 120
+    Only_Galaxies : bool, optional
+        filter for galaxies, by default 0
+    Remove_NaN : bool, optional
+        removes NaN in ratio and surface brightness recommended do not touch, by default 1
+
+    Returns
+    -------
+    np.ndarray
+        filtered object array
+    """    
     if Only_Galaxies == 1:
         objects_filtered = Galaxies(objects)[0]
     else:
         objects_filtered = objects
     objects_filtered = Surface_Brightness(objects_filtered)
     objects_filtered = ratio(objects_filtered, min_frac, Remove_NaN)
-    objects_filtered = min_zenith_filter(objects_filtered, 40)
-    objects_filtered = time_over_x_filter(objects_filtered, Altitude_Threshold, Time_Threshold)
-    objects_filtered = time_over_x(objects_filtered, Altitude_Threshold)
+    objects_filtered = min_zenith_filter(objects_filtered, 40, Lat)
+    objects_filtered = time_over_x_filter(objects_filtered, obs_date, timezone, Lon, Lat, ele, Altitude_Threshold, Time_Threshold)
+    objects_filtered = time_over_x(objects_filtered, obs_date, timezone, Lon, Lat, ele, Altitude_Threshold)
     objects_filtered = np.array(sorted(objects_filtered, key=lambda x: ( float(x[-1]), float(x[4])), reverse=True),dtype = object)
     return objects_filtered
 
-def AdvancedViewer(data: np.ndarray, k: int = 10, Altitude_Reference: float = 30):
+def AdvancedViewer(data: np.ndarray, obs_date: str, timezone: str, Lon: float = 10.88846, Lat: float = 49.88474, ele: float = 282, k: int = 10, Altitude_Reference: float = 30):
     """
-    This functions prints plots three diagrams for each object: 1. a time-altitude diagram, 2. a time-azimuth and 3. size in FOV. The ratio of the diagonals (object:FOV) is displayed in percent.
+    This functions plots three diagrams for each object: 1. a time-altitude diagram, 2. a time-azimuth and 3. size in FOV. The ratio of the diagonals (object:FOV) is displayed in percent.
     
     Parameters
     ----------
-    data: objects being plottes
-    k : no. of objects being plotted
-    Altitude_Reference : float, Reference at an definable altitude    
+    data : np.ndarray
+        objects being plotted
+    obs_date : str
+        date of your observation in format `"YYYY-MM-DD"`
+    timezone : str
+        your timezone in format `"Europe/Berlin"`
+    Lon : float, optional
+        Longitude of observation point, by default 10.88846 (Dr. Remeis Observatory)
+    Lat : float, optional
+        Latitude of observation point, by default 49.88474 (Dr. Remeis Observatory)
+    ele : float, optional
+        elevation of observation point, by default 282 (Dr. Remeis Observatory)
+    k : int
+        no. of objects being plotted, by default 10
+    Altitude_Reference : float,
+        Reference at an definable altitude, by default 30
     """
     location = EarthLocation.from_geodetic(lon= Lon* u.deg, lat = Lat* u.deg, height = ele*u.m)
     observer = Observer(location=location, timezone=timezone)
 
-    date_time = Time(selected_date)
+    date_time = Time(obs_date)
     start_time_utc = observer.sun_set_time(date_time, which="nearest",horizon=-12 * u.deg)
     end_time_utc = observer.sun_rise_time(date_time, which="nearest",horizon=-12 * u.deg)
 
@@ -719,18 +921,34 @@ def AdvancedViewer(data: np.ndarray, k: int = 10, Altitude_Reference: float = 30
     plt.ioff()  # Disable interactive mode
     plt.show(block=True)  # Keep all figures open
 
-def PathViewer(data: np.ndarray):
+def PathViewer(data: np.ndarray, obs_date: str, timezone: str, Lon: float = 10.88846, Lat: float = 49.88474, ele: float = 282, k: int = 10, colored: int = 5):
     """
-    This function plots the paths of the objects from `final_best` onto a stereographic projection of the sky. The paths of the five best objects are coloured, the rest ist b/w. The start and end time are defined by variables `start_time` and `end_time`.
+    This function plots the paths of the objects from `data` onto a stereographic projection of the sky. The paths of the five best objects are coloured, the rest ist b/w. The start and end time are defined by variables `start_time` and `end_time`.
 
     Parameters
-    -----------
+    ----------
+    data : np.ndarray
+        array of objects
+    obs_date : str
+        date of your observation in format `"YYYY-MM-DD"`
+    timezone : str
+        your timezone in format `"Europe/Berlin"`
+    Lon : float, optional
+        Longitude of observation point, by default 10.88846 (Dr. Remeis Observatory)
+    Lat : float, optional
+        Latitude of observation point, by default 49.88474 (Dr. Remeis Observatory)
+    ele : float, optional
+        elevation of observation point, by default 282 (Dr. Remeis Observatory)
+    k : int
+        number of objects to be plotted, by default 10
+    colored : int
+        top `n` objects to be coloured, must be <= `k`, by default 5
     """
 
     location = EarthLocation.from_geodetic(lon= Lon* u.deg, lat = Lat* u.deg, height = ele*u.m)
     observer = Observer(location=location, timezone=timezone)
 
-    date_time = Time(selected_date)
+    date_time = Time(obs_date)
     start_time_utc = observer.sun_set_time(date_time, which="nearest",horizon=-12 * u.deg)
     end_time_utc = observer.sun_rise_time(date_time, which="nearest",horizon=-12 * u.deg)
 
@@ -751,8 +969,10 @@ def PathViewer(data: np.ndarray):
 
     legend_elements = []  # Speichern Sie Element für die Legende
 
-    for n in range(10):
-        if n in range(5):
+    k = min(k, len(data[:, 0]))
+
+    for n in range(k):
+        if n in range(colored):
             colors = ["spring", "summer", "autumn", "winter", "hot"]
             cmap = plt.get_cmap(colors[n])
             size = 1  # Größere Punkte für die ersten 5
@@ -772,7 +992,7 @@ def PathViewer(data: np.ndarray):
         
         # Legendenelement speichern
         if n < 5:  # Nur für die ersten 5 hinzufügen
-            legend_elements.append(Line2D([0], [0], marker='o', color='w', label=f"{final_best[n, 0]}", markerfacecolor=cmap(0.25), markersize=10))
+            legend_elements.append(Line2D([0], [0], marker='o', color='w', label=f"{data[n, 0]}", markerfacecolor=cmap(0.25), markersize=10))
 
     # Hinzufügen von Gitterlinien alle 10°
     gl = ax.gridlines(draw_labels=True, linestyle="--", color = "#c4c4c4")
@@ -782,14 +1002,23 @@ def PathViewer(data: np.ndarray):
 
     # Aktivieren aller Labels
     gl.xlabel_style = {'size': 8, 'color': '#a4a4a4'}
-    gl.ylabel_style = {'size': 8, 'color': '#a4a4a4'}
+    gl.ylabel_style = {'size': 0, 'color': '#a4a4a4'}
     gl.xlabels_top = False
     gl.ylabels_right = False
 
     # Manually place altitude (latitude) labels near 0° longitude
-    for lat in range(20, 91, 10):  # Every 10° from 10° to 90°
-        ax.text(-60, lat, f"{lat}°N", transform=ccrs.PlateCarree(),
-                ha="left", va="baseline", fontsize=8, color="#a4a4a4", rotation=0)
+    x_label_position = -20  # Adjust label position dynamically if needed
+
+    latitudes = range(20, 91, 10) if Lat >= 0 else range(-90, -19, 10)
+
+    for lat in latitudes:
+        hemisphere = "N" if Lat >= 0 else "S"
+        ax.text(x_label_position, abs(lat), f"{abs(lat)}°{hemisphere}", 
+                transform=ccrs.PlateCarree(), ha="left", va="baseline", 
+                fontsize=8, color="#a4a4a4")
+
+
+
 
     # Create the color scale
     sm = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
@@ -810,18 +1039,22 @@ def PathViewer(data: np.ndarray):
 
     plt.show()
 
-def TimeViewer(object_name: str, data: np.ndarray):
+def TimeViewer(object_name: str, data: np.ndarray, timezone: str):
     """
     This function plots the maximal altitude and the time of it with respect to the day of the year. The flat lines of the maximal time are data points beyond the 18:00 and 06:00 border.
 
     Parameters
     ----------
-    objects_name: str, Name of the object to be observed in form of `"M101"`. Watch out for spelling and capital letters, else it may fail.
-    data : np.ndarray, Array of objects which is searched.    
+    objects_name : str
+        Name of the object to be observed in form of `"M101"`. Watch out for spelling and capital letters, else it may fail.
+    data : np.ndarray
+        Array of objects which is searched.
+    timezone : str
+        your timezone in format `"Europe/Berlin"`
     """
     object_map = {name: idx for idx, name in enumerate(data[:, 0])}
     dt_1 = datetime(2025, 1, 1, 18, 0, 0)
-    cest_tz = pytz.timezone("Europe/Berlin")
+    cest_tz = pytz.timezone(timezone)
     cest_time_1 = cest_tz.localize(dt_1)
 
     utc_time_1 = cest_time_1.astimezone(pytz.utc)
@@ -892,7 +1125,8 @@ def mapping(objects: list):
 
     Parameters
     ----------
-    objects: list, List of objects to be plotted
+    objects : list
+        List of objects to be plotted
     
     """
     frame = inspect.currentframe().f_back
@@ -929,11 +1163,22 @@ def mapping(objects: list):
 
     plt.show()
 
-def generate_grid(n: int):
+def generate_grid(n: int) -> np.ndarray:
     """
     Generates a 2D grid of n evenly spaced points.
     Column 1: X-coordinates (0 to 360)
     Column 2: Y-coordinates (-90 to 90)
+    JUSTUS
+
+    Parameters
+    ----------
+    n : int
+        number of evenly spaced points
+
+    Returns
+    -------
+    np.ndarray
+        array of evenly spaced points
     """
     # Determine approximate grid size (rows and columns)
     num_cols = int(np.sqrt(n * (360 / 180)))  # Keep aspect ratio
@@ -951,9 +1196,19 @@ def generate_grid(n: int):
 
     return points
 
-def add_column_of_ones(array):
+def add_column_of_ones(array: np.ndarray) -> np.ndarray:
     """
     Adds a column of ones to the front of a 2D NumPy array.
+
+    Parameters
+    ----------
+    array : np.ndarray
+        array of data
+
+    Returns
+    -------
+    np.ndarray
+        array of data with column of ones
     """
     n = array.shape[0]  # Number of rows
     ones_column = np.ones((n, 1))  # Create a (n,1) column of ones
@@ -965,9 +1220,12 @@ def color_map(data: np.ndarray, t: float, resolution: float):
 
     Parameters
     ----------
-    data : array, 2D-array with RA-values in 2nd collumn DEC-values in 3rd collumn and no. of minutes above 30° Alt in last collumn. (Rest is irrelevant for this function)
-    t : float, minutes-hurdle
-    resolution : float, number of gridpoints.
+    data : array
+        2D-array with RA-values in 2nd collumn DEC-values in 3rd collumn and no. of minutes above 30° Alt in last collumn. (Rest is irrelevant for this function)
+    t : float
+        minutes-hurdle
+    resolution : float
+        number of gridpoints.
     """
 
     fig, ax = plt.subplots(figsize = (13,6))
@@ -1017,9 +1275,9 @@ def color_map(data: np.ndarray, t: float, resolution: float):
     plt.tight_layout()
     plt.show()
 
-def PlotBestObjects(objects: np.ndarray, min_frac: float = 0.08, Altitude_Threshold: float = 30, Time_Threshold: float = 120, Only_Galaxies: bool = 0, k: int = 10, Altitude_Reference: float = 30, Remove_NaN: bool = 1):
+def PlotBestObjects(objects: np.ndarray, obs_date: str, timezone: str, Lon: float, Lat: float, ele: float, min_frac: float = 0.08, Altitude_Threshold: float = 30, Time_Threshold: float = 120, Only_Galaxies: bool = 0, k: int = 10, colored: int = 5, Altitude_Reference: float = 30, Remove_NaN: bool = 1):
     print("Welcome to the function calculating and plotting the best objects for your location!")
-    final_best = Final_Best(objects, min_frac, Altitude_Threshold, Time_Threshold, Only_Galaxies, Remove_NaN)
-    PathViewer()
-    AdvancedViewer(k, Altitude_Reference)
+    final_best = Final_Best(objects, obs_date, timezone, Lon, Lat, ele, min_frac, Altitude_Threshold, Time_Threshold, Only_Galaxies, Remove_NaN)
+    PathViewer(final_best, obs_date, timezone, Lon, Lat, ele, k, colored)
+    AdvancedViewer(final_best, obs_date, timezone, Lon, Lat, ele, k, Altitude_Reference)
     print("Well done, this function is now over!")
