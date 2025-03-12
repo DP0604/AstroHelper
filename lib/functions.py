@@ -574,15 +574,15 @@ def Ratio(object_row: np.ndarray) -> float:
     Diagonal = np.sqrt(float(object_row[4])**2+float(object_row[5])**2)
     return Diagonal/FOV
 
-def min_zenith_distance(dec_deg: float, Lat: float) -> float:
-    """ JUSTUS
+# Altitude maximal if ra_deg = ERA + Lambda
+
+def min_zenith_distance(dec_deg: float,Lat: float) -> float:
+    """ Calculates the minimal zenith distance using the declination.
 
     Parameters
     ----------
     dec_deg : float
         Declination in degrees
-    Lat : float, optional
-        Latitude of observation point, by default 49.88474 (Dr. Remeis Observatory)
 
     Returns
     -------
@@ -602,22 +602,20 @@ def min_zenith_distance(dec_deg: float, Lat: float) -> float:
         z = zenith_distance(H_EX_2)
     return z
 
-def min_zenith_filter(data_FOV: np.ndarray, Lat: float, baseline: float = 40,) -> np.ndarray:
-    """ This function filters objects by their minimal zenith distance. JUSTUS
+def min_zenith_filter(data_FOV: np.ndarray,Lat: float, baseline: float = 40) -> np.ndarray:
+    """ This function filters objects by their minimal zenith distance. Filters out all Objects which never reach an Alltitude of atleast 90 - `baseline`.
 
     Parameters
     ----------
     data_FOV : np.ndarray
         array of objects in the FOV
-    Lat : float, optional
-        Latitude of observation point, by default 49.88474 (Dr. Remeis Observatory)
     baseline : float, optional
         minimal zenith distance, by default 40
 
     Returns
     -------
     np.ndarray
-        _description_
+        Array with collumns removed, where objects never reach the minimum Alltitude.
     """
     min_zen_dis = []
 
@@ -1168,7 +1166,6 @@ def generate_grid(n: int) -> np.ndarray:
     Generates a 2D grid of n evenly spaced points.
     Column 1: X-coordinates (0 to 360)
     Column 2: Y-coordinates (-90 to 90)
-    JUSTUS
 
     Parameters
     ----------
