@@ -1,5 +1,6 @@
 import numpy as np
 from astropy.time import Time
+from astroplan import TargetAlwaysUpWarning
 from astroquery.simbad import Simbad
 from astroplan import Observer
 from astropy.coordinates import Angle, EarthLocation, AltAz, SkyCoord
@@ -20,6 +21,7 @@ import calendar
 import cartopy.crs as ccrs
 from cartopy.mpl.ticker import LatitudeFormatter, LongitudeFormatter
 import inspect
+import warnings
 
 def getStarted():
     WelcomeMessage = """Welcome to the AstroHelper! This code is still in experimental mode! This is a short introduction to the code with all the relevant data. First of all, you will need to define your observation location. To do this, please define the variables `Lon` (Longitude in degrees), `Lat` (Latitude in degrees), `ele` (elevation in metres) as well as the observations date in format `"YYYY-MM-DD"` and your timezone with `"Europe/Berlin"` (watch out! you need quotation marks due to the date and timezone being a string). If you have your coordinates in any other format please us the helper functions below to transform to degrees! Next call the function `TelescopeData` and input the necessary parameters of your telescope so that other functions work! If there is a typo in the variable names or if you just want to experiment with the standard values, the geographic location used without input is the Dr. Remeis Observatory in Bamberg, Germany as the seat of the astronomical institute of the Friedrich-Alexander University Erlangen-Nuremberg with data of Lon: 10.88846, Lat: 49.88474, ele: 282 (°, °, m).
@@ -576,14 +578,15 @@ def Ratio(object_row: np.ndarray) -> float:
 
 # Altitude maximal if ra_deg = ERA + Lambda
 
-def min_zenith_distance(dec_deg: float,Lat: float) -> float:
+def min_zenith_distance(dec_deg: float, Lat: float) -> float:
     """ Calculates the minimal zenith distance using the declination.
 
     Parameters
     ----------
     dec_deg : float
         Declination in degrees
-
+    Lat : float
+        Latitude of the observation point in degrees
     Returns
     -------
     float
@@ -609,6 +612,8 @@ def min_zenith_filter(data_FOV: np.ndarray,Lat: float, baseline: float = 40) -> 
     ----------
     data_FOV : np.ndarray
         array of objects in the FOV
+    Lat : float
+        Latitude of the observation point in degrees
     baseline : float, optional
         minimal zenith distance, by default 40
 
@@ -665,32 +670,41 @@ def time_over_x_filter(data: np.ndarray, obs_date: str, timezone: str, Lon: floa
     observer = Observer(location=location, timezone=timezone)
 
     date_time = Time(obs_date)
-    start_time_utc = observer.sun_set_time(date_time, which="nearest",horizon=-12 * u.deg)
-    end_time_utc = observer.sun_rise_time(date_time, which="nearest",horizon=-12 * u.deg)
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", TargetAlwaysUpWarning)
+        start_time_utc = observer.sun_set_time(date_time, which="nearest", horizon=-12 * u.deg)
+        end_time_utc = observer.sun_rise_time(date_time, which="nearest", horizon=-12 * u.deg)
+        time_fail = observer.sun_set_time(date_time, which="nearest", horizon=-80 * u.deg).to_datetime(timezone=pytz.timezone(timezone))
 
     tz = pytz.timezone(timezone)
     start_time = start_time_utc.to_datetime(timezone=tz)
     end_time = end_time_utc.to_datetime(timezone=tz)
+    
+    
 
-    delta_T = (end_time - start_time).total_seconds() / (24 * 3600)
-    p = int(delta_T*1440 + 1)
+    if isinstance(start_time - end_time, type(time_fail)):
+        return None
 
-    T = np.linspace(0, delta_T, p) 
+    else:
+        delta_T = (end_time - start_time).total_seconds() / (24 * 3600)
+        p = int(delta_T*1440 + 1)
 
-    utc_time = start_time.astimezone(pytz.utc)
-    Time_Night = Time(utc_time).jd
-    Time_Night_T = Time_Night + T
+        T = np.linspace(0, delta_T, p) 
 
-    keep = []
-    more_del=[]
+        utc_time = start_time.astimezone(pytz.utc)
+        Time_Night = Time(utc_time).jd
+        Time_Night_T = Time_Night + T
 
-    for n in range(len(data[:,0])):
-        if np.sum((Az_Alt(Time_Night_T,float(data[n,1]), float(data[n, 2])))[1] > Altitude_Threshold) >=Time_Threshold:
-            keep.append(n) 
-        else: 
-            more_del.append(n)
+        keep = []
+        more_del=[]
 
-    return np.delete(data,more_del,0)
+        for n in range(len(data[:,0])):
+            if np.sum((Az_Alt(Time_Night_T,float(data[n,1]), float(data[n, 2]), Lon, Lat))[1] > Altitude_Threshold) >=Time_Threshold:
+                keep.append(n) 
+            else: 
+                more_del.append(n)
+
+        return np.delete(data,more_del,0)
 
 def time_over_x(data: np.ndarray, obs_date: str, timezone: str, Lon: float = 10.88846, Lat: float = 49.88474, ele: float = 282, Altitude_Threshold: float = 30) -> np.ndarray:
     """This function calculates the time an object is over Altitude_Threshold.
@@ -722,28 +736,36 @@ def time_over_x(data: np.ndarray, obs_date: str, timezone: str, Lon: float = 10.
     observer = Observer(location=location, timezone=timezone)
 
     date_time = Time(obs_date)
-    start_time_utc = observer.sun_set_time(date_time, which="nearest",horizon=-12 * u.deg)
-    end_time_utc = observer.sun_rise_time(date_time, which="nearest",horizon=-12 * u.deg)
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", TargetAlwaysUpWarning)
+        start_time_utc = observer.sun_set_time(date_time, which="nearest", horizon=-12 * u.deg)
+        end_time_utc = observer.sun_rise_time(date_time, which="nearest", horizon=-12 * u.deg)
+        time_fail = observer.sun_set_time(date_time, which="nearest", horizon=-80 * u.deg).to_datetime(timezone=pytz.timezone(timezone))
 
     tz = pytz.timezone(timezone)
     start_time = start_time_utc.to_datetime(timezone=tz)
     end_time = end_time_utc.to_datetime(timezone=tz)
-
-    delta_T = (end_time - start_time).total_seconds() / (24 * 3600)
-    p = int(delta_T*1440 + 1)
-
-    T = np.linspace(0, delta_T, p)
     
-    utc_time = start_time.astimezone(pytz.utc)
-    Time_Night = Time(utc_time).jd
-    Time_Night_T = Time_Night + T
-    data_m = []
-    for n in range(len(data[:,0])):
-        N = np.sum((Az_Alt(Time_Night_T, float(data[n, 1]), float(data[n, 2])))[1] > Altitude_Threshold)
-        data_m.append(N) 
 
-    data_m_arr = np.array(data_m, dtype = float)
-    return np.append(data, data_m_arr[:, None], axis=1)
+    if isinstance(start_time - end_time, type(time_fail)):
+        return None
+    
+    else:
+        delta_T = (end_time - start_time).total_seconds() / (24 * 3600)
+        p = int(delta_T*1440 + 1)
+
+        T = np.linspace(0, delta_T, p)
+        
+        utc_time = start_time.astimezone(pytz.utc)
+        Time_Night = Time(utc_time).jd
+        Time_Night_T = Time_Night + T
+        data_m = []
+        for n in range(len(data[:,0])):
+            N = np.sum((Az_Alt(Time_Night_T, float(data[n, 1]), float(data[n, 2]), Lon, Lat))[1] > Altitude_Threshold)
+            data_m.append(N) 
+
+        data_m_arr = np.array(data_m, dtype = float)
+        return np.append(data, data_m_arr[:, None], axis=1)
 
 
 def Final_Best(objects: np.ndarray, obs_date: str, timezone, Lon: float = 10.88846, Lat: float = 49.88474, ele: float = 282, min_frac: float = 0.08, Altitude_Threshold: float = 30, Time_Threshold: float = 120, Only_Galaxies: bool = 0, Remove_NaN: bool = 1) -> np.ndarray:
@@ -788,9 +810,13 @@ def Final_Best(objects: np.ndarray, obs_date: str, timezone, Lon: float = 10.888
     objects_filtered = ratio(objects_filtered, min_frac, Remove_NaN)
     objects_filtered = min_zenith_filter(objects_filtered, 40, Lat)
     objects_filtered = time_over_x_filter(objects_filtered, obs_date, timezone, Lon, Lat, ele, Altitude_Threshold, Time_Threshold)
-    objects_filtered = time_over_x(objects_filtered, obs_date, timezone, Lon, Lat, ele, Altitude_Threshold)
-    objects_filtered = np.array(sorted(objects_filtered, key=lambda x: ( float(x[-1]), float(x[4])), reverse=True),dtype = object)
-    return objects_filtered
+    if objects_filtered is None:
+        print("No night time")
+        return None
+    else:
+        objects_filtered = time_over_x(objects_filtered, obs_date, timezone, Lon, Lat, ele, Altitude_Threshold)
+        objects_filtered = np.array(sorted(objects_filtered, key=lambda x: ( float(x[-1]), float(x[4])), reverse=True),dtype = object)
+        return objects_filtered
 
 def AdvancedViewer(data: np.ndarray, obs_date: str, timezone: str, Lon: float = 10.88846, Lat: float = 49.88474, ele: float = 282, k: int = 10, Altitude_Reference: float = 30):
     """
@@ -867,7 +893,7 @@ def AdvancedViewer(data: np.ndarray, obs_date: str, timezone: str, Lon: float = 
     plt.ion()  # Enable interactive mode
 
     for n in range(k):
-        H, a = Az_Alt(Time_Night_T, float(data[n, 1]), float(data[n, 2]))[1], Az_Alt(Time_Night_T, float(data[n, 1]), float(data[n, 2]))[0]
+        H, a = Az_Alt(Time_Night_T, float(data[n, 1]), float(data[n, 2]), Lon, Lat)[1], Az_Alt(Time_Night_T, float(data[n, 1]), float(data[n, 2]), Lon, Lat)[0]
         A = [x + 360 if x < 0 else x for x in a]
 
         # Create new figure for each object
@@ -1272,9 +1298,46 @@ def color_map(data: np.ndarray, t: float, resolution: float):
     plt.tight_layout()
     plt.show()
 
-def PlotBestObjects(objects: np.ndarray, obs_date: str, timezone: str, Lon: float, Lat: float, ele: float, min_frac: float = 0.08, Altitude_Threshold: float = 30, Time_Threshold: float = 120, Only_Galaxies: bool = 0, k: int = 10, colored: int = 5, Altitude_Reference: float = 30, Remove_NaN: bool = 1):
+def PlotBestObjects(objects: np.ndarray, obs_date: str, timezone: str, Lon: float = 10.88846, Lat: float = 49.88474, ele: float = 282, min_frac: float = 0.08, Altitude_Threshold: float = 30, Time_Threshold: float = 120, Only_Galaxies: bool = 0, k: int = 10, colored: int = 5, Altitude_Reference: float = 30, Remove_NaN: bool = 1):
+    """
+    Function that calculates the best objects for your location and plots them.
+    
+    Parameters
+    ----------
+    objects : np.ndarray
+        array of objects
+    obs_date : str
+        date of your observation in format `"YYYY-MM-DD"`
+    timezone : str 
+        your timezone in format `"Europe/Berlin"`
+    Lon : float, optional
+        Longitude of observation point, by default 10.88846 (Dr. Remeis Observatory)
+    Lat : float, optional
+        Latitude of observation point, by default 49.88474 (Dr. Remeis Observatory)
+    ele : float, optional
+        elevation of observation point, by default 282 (Dr. Remeis Observatory)
+    min_frac : float, optional
+        minimum fraction of the object above the horizon, by default 0.08
+    Altitude_Threshold : float, optional
+        Minimum altitude the object must rise above, by default 30
+    Time_Threshold : float, optional
+        Minimum time the object must be above `Altitude_Threshold`, by default 120
+    Only_Galaxies : bool, optional
+        If True, only galaxies are considered, by default 0
+    k : int, optional
+        number of objects to be plotted, by default 10
+    colored : int, optional
+        top `n` objects to be coloured, must be <= `k`, by default 5
+    Altitude_Reference : float, optional
+        Reference at an definable altitude, by default 30
+    Remove_NaN : bool, optional
+        If True, NaN values for size information are removed, by default 1
+    """
     print("Welcome to the function calculating and plotting the best objects for your location!")
     final_best = Final_Best(objects, obs_date, timezone, Lon, Lat, ele, min_frac, Altitude_Threshold, Time_Threshold, Only_Galaxies, Remove_NaN)
-    PathViewer(final_best, obs_date, timezone, Lon, Lat, ele, k, colored)
-    AdvancedViewer(final_best, obs_date, timezone, Lon, Lat, ele, k, Altitude_Reference)
-    print("Well done, this function is now over!")
+    if final_best is None:
+        return None
+    else:
+        PathViewer(final_best, obs_date, timezone, Lon, Lat, ele, k, colored)
+        AdvancedViewer(final_best, obs_date, timezone, Lon, Lat, ele, k, Altitude_Reference)
+        print("Well done, this function is now over!")

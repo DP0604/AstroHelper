@@ -21,7 +21,8 @@ dependencies = [
   "timedelta",
   "matplotlib",
   "scipy",
-  "pytz"
+  "pytz",
+  "warnings",
 ]
 
 [project.urls]
