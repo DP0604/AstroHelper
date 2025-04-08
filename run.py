@@ -8,14 +8,15 @@ IC_arr = functions.load_variable_column_file("IC.txt")
 
 data_arr = np.vstack((messier_arr, NGC_arr, IC_arr))
 
-Lon = functions.dms_to_deg(12, 0, 57)
-Lat = functions.dms_to_deg(48, 40, 54)
-ele = 450
+#Location data of your observation point (e.g., Dr. Remeis Observatory)
+Lon = 10.88846 
+Lat = 49.88474 
+ele = 282   # in meters
 
-functions.TelescopeData(1624)
+functions.TelescopeData()
 
-selected_date = "2025-03-08"
+selected_date = "2025-04-15"
 timezone = "Europe/Berlin"
 
-final_best = functions.Final_Best(data_arr, obs_date=selected_date, timezone=timezone, Lon=Lon, ele=ele, min_frac=0.2, Only_Galaxies = 1)
-functions.PlotBestObjects(objects=final_best, obs_date=selected_date, timezone=timezone, Lon=Lon, Lat=Lat, ele=ele, k = 5, Only_Galaxies = 1)
+final_best = functions.Final_Best(data_arr, obs_date=selected_date, timezone=timezone, Lon=Lon, ele=ele, min_frac=0.2, Galaxies = 1)
+functions.PlotBestObjects(objects=data_arr, obs_date=selected_date, timezone=timezone, Lon=Lon, Lat=Lat, ele=ele, k = 5, Galaxies = 1)
