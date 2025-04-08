@@ -2,6 +2,7 @@ import numpy as np
 from astropy.time import Time
 from astroplan import TargetAlwaysUpWarning
 from astroquery.simbad import Simbad
+from astroquery.ipac.ned import Ned
 from astroplan import Observer
 from astropy.coordinates import Angle, EarthLocation, AltAz, SkyCoord
 import astropy.units as u
@@ -329,9 +330,10 @@ def extract_IC_name(object_ids: list) -> None:
     return None
 
 
-def Simbad_extraction(objects: list, name: str, batch_size: int=200) -> np.ndarray:
+def Simbad_extraction_with_ned(objects: list, name: str = "NaN", batch_size: int = 200) -> np.ndarray:
     """
-    This function conducts a query of SIMBAD. It pulls the data for RA, DEC, dimensions, flux and morphological type. Then it creates a list of all objects. The list of objects is saved as ```[name].txt```
+    This function conducts a query of SIMBAD and NED. It pulls the data for RA, DEC, dimensions, flux, morphological type, 
+    and NED type. Then it creates a list of all objects. The list of objects is saved as `[name].txt`.
 
     Parameters
     ----------
@@ -340,21 +342,25 @@ def Simbad_extraction(objects: list, name: str, batch_size: int=200) -> np.ndarr
     name : str
         Name of list to be saved as `[name].txt`
     batch_size : int, optional
-        size over which loop iterates, by default 200
+        Size over which loop iterates, by default 200
 
     Returns
     -------
     np.ndarray
         NumPy array consisting of data of the filtered objects
     """
-    
     # Clear cache to avoid stale results
     Simbad.clear_cache()
 
     # Configure Simbad query to include required fields
     custom_simbad = Simbad()
-    custom_simbad.add_votable_fields('main_id', 'ra', 'dec', 'V', 'dim', "ids","morph_type")
-    
+    custom_simbad.add_votable_fields('main_id', 'ra', 'dec', 'V', 'dim', "ids")
+
+    # Define the lists of object names
+    Messier_list = ["M" + str(i) for i in range(1,111)]
+    NGC_list = ["NGC" + str(i) for i in range(1,7841)]
+    IC_list = ["IC" + str(i) for i in range(1,5387)]
+
     data = []
 
     # Creates a batch of objects which are then queried. After the batch is complete, new batch is created.
@@ -373,7 +379,7 @@ def Simbad_extraction(objects: list, name: str, batch_size: int=200) -> np.ndarr
                 dec_values = result_table['dec'][j]
 
                 magnitude = result_table["V"][j] if "V" in result_table.colnames else None
-                
+
                 # Extract galaxy dimensions (major/minor axis)
                 major_axis = result_table["galdim_majaxis"][j] if "galdim_majaxis" in result_table.colnames else None
                 minor_axis = result_table["galdim_minaxis"][j] if "galdim_minaxis" in result_table.colnames else None
@@ -383,11 +389,7 @@ def Simbad_extraction(objects: list, name: str, batch_size: int=200) -> np.ndarr
                 NGC_name = extract_NGC_name(matched_ID)
                 IC_name = extract_IC_name(matched_ID)
 
-                morph_type = result_table["morph_type"][j] if "morph_type" in result_table.colnames else None
-                if np.ma.is_masked(ra_values) or np.ma.is_masked(dec_values):
-                    continue
-
-                # Filter for name lists. If one of these is true, it means that an object has double names and is filtered out of the list. For more infos see documentation of the functions NGC_name, messier_name and IC_name.
+                # Filter for name lists. If one of these is true, it means that an object has double names and is filtered out of the list.
                 if obj in NGC_list:
                     if NGC_name != obj:
                         continue
@@ -396,18 +398,29 @@ def Simbad_extraction(objects: list, name: str, batch_size: int=200) -> np.ndarr
                 elif obj in IC_list:
                     if IC_name != obj:
                         continue
+                print(f"Processing {obj}")
+                # Query NED for the "Type"
+                ned_type = None
+                try:
+                    ned_result = Ned.query_object(obj)
+                    if len(ned_result) > 0 and "Type" in ned_result.colnames:
+                        ned_type = ned_result["Type"][0]
+                except Exception as e:
+                    print(f"NED query failed for {obj}: {e}")
 
                 # Append only if all values exist
-                data.append((obj, ra_values, dec_values, magnitude, major_axis, minor_axis, morph_type))
+                data.append((obj, ra_values, dec_values, magnitude, major_axis, minor_axis, ned_type))
 
             except Exception as e:
                 print(f"Error processing {obj}: {e}")
 
     data_npar = np.array(data, dtype=object)
 
+    if name != "NaN":
+        # Save the data to a text file
+        np.savetxt(name, data_npar, fmt='%s')
     # Saves the numpy array as a file under the name [name].txt as provided in the function
-    np.savetxt(name, data_npar)
-    
+
     return data_npar
 
 def load_variable_column_file(filename: str) -> np.ndarray:
@@ -439,30 +452,48 @@ def load_variable_column_file(filename: str) -> np.ndarray:
     data_padded_nparr = np.array(data_padded, dtype=str)
     return data_padded_nparr
 
-def Galaxies(Objects: list) -> tuple[list, list]:
+def Type_filter(Objects: np.ndarray, Galaxies: bool = 0, Nebulae: bool = 0,Supernovae_remnants:bool = 0, Clusters: bool = 0, Stars: bool = 0, All: bool = 0) -> np.ndarray:
     """
-    This function filters a list of objects by the condition of "Galaxy".
+    Function filters the objects according to their type.
 
     Parameters
     ----------
-    Objects : list
-        List of objects
+    Objects : np.ndarray
+        Array of objects with data
+    Galaxies : bool, optional
+        Filter for galaxies, by default 0
+    Nebulae : bool, optional
+        Filter for nebulae, by default 0
+    Clusters : bool, optional
+        Filter for clusters, by default 0
+    Stars : bool, optional
+        Filter for stars, by default 0
+    All : bool, optional
+        Filter for all types, by default 0
 
     Returns
     -------
-    tuple[list, list]
-        list with objects which are galaxies and a list witch are not galaxies
+    np.ndarray
+        Array of filtered objects with data
     """
     
-    no_gal = []
+    # Create a mask for filtering based on the specified types
+    mask = np.zeros(len(Objects), dtype=bool)
 
-    is_galaxy = Objects[:, -1] != "NaN"
+    if Galaxies:
+        mask |= np.isin(Objects[:, -1], ["G", "GPair", "GTrpl", "GGroup", "PofG"])
+    if Nebulae:
+        mask |= np.isin(Objects[:, 6], ["Neb", "PN", "!PN", "HII", "!HII", "RfN"])
+    if Clusters:
+        mask |= np.isin(Objects[:, 6], ["MCld", "Cl", "*Cl", "!*Cl"])
+    if Supernovae_remnants:
+        mask |= (Objects[:, 6] == "SNR")
+    if Stars:
+        mask |= np.isin(Objects[:, 6], ["*", "**", "!*", "!V*", "*Ass"])
+    if All:
+        mask |= (Objects[:, 6] != "NaN")
 
-    Objects_gal = Objects[is_galaxy]
-
-    Objects_not_gal = Objects[~is_galaxy]
-
-    return Objects_gal, Objects_not_gal
+    return Objects[mask]
 
 def TelescopeData(FocalLength: float = 750, PixelSize: int = 4.30, x_Pixels: int = 5184, y_Pixels: int = 3456):
     """
@@ -526,9 +557,28 @@ def safe_convert(val):
         return np.nan
 
 
+def Ratio(object_row: np.ndarray) -> float:
+    """
+    This function calculates the percentage the objects diagonal takes in relation to the diagonal of the FOV.
+
+    Parameters
+    ----------
+    object_row : np.ndarray
+        array of object data
+
+    Returns
+    -------
+    float
+        ratio of diagonal to FOV-diagonal in percent
+    """
+    FOV = Fov(Dia)
+    Diagonal = np.sqrt(float(safe_convert(object_row[4]))**2+float(safe_convert(object_row[5]))**2)
+    return Diagonal/FOV
+
+
 def ratio(object_arr: np.ndarray, min_frac: float = 0.08, Remove_NaN: bool = 1) -> np.ndarray:
     """
-    This function filters the array with objects with respect to their ratio to the diagonal of the FOV. If the major or the minor axis of an object are larger than the set hurdle (standard is `0.1*x_FOV` and `0.1*y_FOV` respectively) they are left in the array, else they are filtered out.
+    This function filters the array with objects with respect to their ratio to the diagonal of the FOV.
 
     Parameters
     ----------
@@ -551,32 +601,14 @@ def ratio(object_arr: np.ndarray, min_frac: float = 0.08, Remove_NaN: bool = 1) 
     maj_ax = np.array([safe_convert(x) for x in object_arr[:,4]])
     min_ax = np.array([safe_convert(x) for x in object_arr[:,5]])
 
-    mask = (maj_ax >= min_frac * x_FOV) | (min_ax >= min_frac * y_FOV)
+    ratios = np.array([Ratio(row) for row in object_arr])
+    mask = ratios >= min_frac
+    #mask = (maj_ax >= min_frac * x_FOV) | (min_ax >= min_frac * y_FOV)
 
     if Remove_NaN:
         mask = mask & ~np.isnan(maj_ax) & ~np.isnan(min_ax)
 
     return object_arr[mask]
-
-def Ratio(object_row: np.ndarray) -> float:
-    """
-    This function calculates the percentage the objects diagonal takes in relation to the diagonal of the FOV.
-
-    Parameters
-    ----------
-    object_row : np.ndarray
-        array of object data
-
-    Returns
-    -------
-    float
-        ratio of diagonal to FOV-diagonal in percent
-    """
-    FOV = Fov(Dia)
-    Diagonal = np.sqrt(float(object_row[4])**2+float(object_row[5])**2)
-    return Diagonal/FOV
-
-# Altitude maximal if ra_deg = ERA + Lambda
 
 def min_zenith_distance(dec_deg: float, Lat: float) -> float:
     """ Calculates the minimal zenith distance using the declination.
@@ -731,7 +763,7 @@ def time_over_x(data: np.ndarray, obs_date: str, timezone: str, Lon: float = 10.
     np.ndarray
         appended array of objects with duration over `Altitude_Threshold` in minutes
     """
-    
+        
     location = EarthLocation.from_geodetic(lon= Lon* u.deg, lat = Lat* u.deg, height = ele*u.m)
     observer = Observer(location=location, timezone=timezone)
 
@@ -759,16 +791,22 @@ def time_over_x(data: np.ndarray, obs_date: str, timezone: str, Lon: float = 10.
         utc_time = start_time.astimezone(pytz.utc)
         Time_Night = Time(utc_time).jd
         Time_Night_T = Time_Night + T
-        data_m = []
-        for n in range(len(data[:,0])):
-            N = np.sum((Az_Alt(Time_Night_T, float(data[n, 1]), float(data[n, 2]), Lon, Lat))[1] > Altitude_Threshold)
-            data_m.append(N) 
+        if data.ndim == 1:
+                data_m = np.sum((Az_Alt(Time_Night_T, float(data[1]), float(data[2]), Lon, Lat))[1] > Altitude_Threshold)
+                data_m_arr = np.array(data_m, dtype = float)
+                result = np.append(data, data_m_arr)
+        else:        
+            data_m = []
+            for n in range(len(data[:,0])):
+                N = np.sum((Az_Alt(Time_Night_T, float(data[n, 1]), float(data[n, 2]), Lon, Lat))[1] > Altitude_Threshold)
+                data_m.append(N)
+            data_m_arr = np.array(data_m, dtype = float)
+            result = np.append(data, data_m_arr[:, None], axis=1)
 
-        data_m_arr = np.array(data_m, dtype = float)
-        return np.append(data, data_m_arr[:, None], axis=1)
+        return result
 
 
-def Final_Best(objects: np.ndarray, obs_date: str, timezone, Lon: float = 10.88846, Lat: float = 49.88474, ele: float = 282, min_frac: float = 0.08, Altitude_Threshold: float = 30, Time_Threshold: float = 120, Only_Galaxies: bool = 0, Remove_NaN: bool = 1) -> np.ndarray:
+def Final_Best(objects: np.ndarray, obs_date: str, timezone, Lon: float = 10.88846, Lat: float = 49.88474, ele: float = 282, min_frac: float = 0.08, Altitude_Threshold: float = 30, Time_Threshold: float = 120, Galaxies: bool = 0, Nebulae: bool = 0,Supernovae_remnants:bool = 0, Clusters: bool = 0, Stars: bool = 0, All: bool = 0, Remove_NaN: bool = 1):
     """
     This function takes in an array of objects with SIMBAD data, filters for morphological type, calculates surface brightness, ratio, filters for minimal zenith distance, time over altitude and sorts from best to worst.
 
@@ -801,14 +839,11 @@ def Final_Best(objects: np.ndarray, obs_date: str, timezone, Lon: float = 10.888
     -------
     np.ndarray
         filtered object array
-    """    
-    if Only_Galaxies == 1:
-        objects_filtered = Galaxies(objects)[0]
-    else:
-        objects_filtered = objects
+    """  
+    objects_filtered = Type_filter(objects, Galaxies=Galaxies, Nebulae=Nebulae, Supernovae_remnants=Supernovae_remnants, Clusters=Clusters, Stars=Stars, All=All)
     objects_filtered = Surface_Brightness(objects_filtered)
     objects_filtered = ratio(objects_filtered, min_frac, Remove_NaN)
-    objects_filtered = min_zenith_filter(objects_filtered, 40, Lat)
+    objects_filtered = min_zenith_filter(objects_filtered,Lat, 40)
     objects_filtered = time_over_x_filter(objects_filtered, obs_date, timezone, Lon, Lat, ele, Altitude_Threshold, Time_Threshold)
     if objects_filtered is None:
         print("No night time")
@@ -922,7 +957,7 @@ def AdvancedViewer(data: np.ndarray, obs_date: str, timezone: str, Lon: float = 
 
         # Object Size in FOV
         sb = surface_brightness_values[n]
-        alpha = 0.5 if sb is None or np.isnan(sb) else 0.5 - ((sb - min_sb) / (max_sb - min_sb)) * 0.5
+        alpha = 0.5 if sb is None or np.isnan(sb) else 1 - ((sb - min_sb) / (max_sb - min_sb)) * 0.75
         ax3 = fig.add_subplot(133)
         ellipse = Ellipse((0, 0), width=float(data[n, 4]) / x_FOV, height=float(data[n, 5]) / y_FOV, angle=0, alpha=alpha)
         ax3.add_patch(ellipse)
@@ -1063,85 +1098,93 @@ def PathViewer(data: np.ndarray, obs_date: str, timezone: str, Lon: float = 10.8
 
     plt.show()
 
-def TimeViewer(object_name: str, data: np.ndarray, timezone: str):
+def TimeViewer(object_name: str,timezone: str = "Europe/Berlin"):
     """
     This function plots the maximal altitude and the time of it with respect to the day of the year. The flat lines of the maximal time are data points beyond the 18:00 and 06:00 border.
 
     Parameters
     ----------
-    objects_name : str
-        Name of the object to be observed in form of `"M101"`. Watch out for spelling and capital letters, else it may fail.
-    data : np.ndarray
-        Array of objects which is searched.
-    timezone : str
-        your timezone in format `"Europe/Berlin"`
+    objects_name: str, Name of the object to be observed in form of `"M101"`. Watch out for spelling and capital letters, else it may fail.
+    timezone: str, optional
+        your timezone in format `"Europe/Berlin"`, by default "Europe/Berlin"  
     """
-    object_map = {name: idx for idx, name in enumerate(data[:, 0])}
-    dt_1 = datetime(2025, 1, 1, 18, 0, 0)
-    cest_tz = pytz.timezone(timezone)
-    cest_time_1 = cest_tz.localize(dt_1)
 
-    utc_time_1 = cest_time_1.astimezone(pytz.utc)
-    Zeit_start = Time(utc_time_1).jd
+    cest_tz = pytz.timezone("Europe/Berlin")
 
-    day_arr = np.linspace(0, 0.5, 1001)
+    mid_month_days = [15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15]
+    months = np.arange(1, 13)
+
+    Simbad_time = Simbad()
+    Simbad_time.add_votable_fields("ra", "dec")
+
+    ra, dec = np.float64(Simbad_time.query_object("M101")["ra"].data), np.float64(Simbad_time.query_object("M101")["dec"].data)
+
     max_time = []
-    max_height = []
+    time_over_30_list = []
 
-    object_idx = object_map.get(object_name, None)
 
-    if object_idx is not None:
-        for n in range(365):
-            Day = Zeit_start + day_arr + n
-            H_object = (Az_Alt(Day, float(data_arr[object_idx, 1]), float(data_arr[object_idx, 2])))[1]
-            max_time_loop = np.argmax(H_object)
-            max_loop = np.max(H_object)
-            max_height.append(max_loop)
-            time_loop = np.linspace(0, 12, 1001)[max_time_loop]
-            max_time.append(time_loop)
+    for month, day in zip(months, mid_month_days):
+        dt_1 = datetime(2025, month, day, 18, 0, 0)
+        selected_date = dt_1.strftime("%Y-%m-%d")
+        cest_time_1 = cest_tz.localize(dt_1)
+        utc_time_1 = cest_time_1.astimezone(pytz.utc)
+        Zeit_start = Time(utc_time_1).jd
 
-        max_time_arr = np.array(max_time)
-        max_height_arr = np.array(max_height)
-        year = np.linspace(1, 365, 365)
+        day_arr = np.linspace(0, 0.5, 1001)
+        Day = Zeit_start + day_arr  
 
-        def convert_time(value):
-            """Converts time (0-12) to 18:00-6:00 format."""
-            hours = (value + 18) % 24
-            return f"{int(hours):02d}:00"
+        H_object = (Az_Alt(Day, float(ra), float(dec)))[1]
 
-        month_days = [0] + np.cumsum([31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]).tolist()
-        month_labels = [calendar.month_name[i] for i in range(1, 13)]
+        max_time_loop = np.argmax(H_object)
+        time_loop = np.linspace(0, 12, 1001)[max_time_loop]
+        max_time.append(time_loop)
 
-        # Plotting
-        fig, ax1 = plt.subplots()
-        line1, = ax1.plot(year, max_time_arr, color='#1f77b4', label="Max Time")
-        ax1.set_ylabel("Time")
-        ax1.set_xlabel("Months of the Year")
-        ax1.set_xlim(0,365)
-        ax1.set_title(object_name)
+        time_over_30 = float(time_over_x(np.array((object_name,ra,dec)),selected_date,timezone)[-1])
+        time_over_30_list.append(time_over_30)
 
-        ax1.set_yticks(np.linspace(0, 12, 7))
-        ax1.set_yticklabels([convert_time(tick) for tick in np.linspace(0, 12, 7)])
 
-        ax1.set_xticks(month_days[:-1])
-        ax1.set_xticklabels(month_labels)
+    max_time_arr = np.array(max_time)
+    time_over_30_arr = np.array(time_over_30_list)
 
-        for day in month_days[1:-1]:  # Skip the first (0) and last (end of the year)
-            ax1.axvline(x=day, color='gray', linestyle='--', linewidth=0.7)
+    # print(max_time_arr)
+    # print(time_over_30_arr[0])
 
-        ax2 = ax1.twinx()
-        line2, = ax2.plot(year, max_height_arr, color='#ff7f0e', label="Max Height")
-        ax2.set_ylabel("Altitude")
+    def convert_time(value):
+        """Converts time (0-12) to 18:00-6:00 format."""
+        hours = (value + 18) % 24
+        return f"{int(hours):02d}:00"
 
-        plt.setp(ax1.xaxis.get_majorticklabels(), rotation=45)
-        plt.setp(ax2.xaxis.get_majorticklabels(), rotation=45)
+    month_labels = [calendar.month_name[i] for i in range(1, 13)]
+    # Plotting
+    fig, ax1 = plt.subplots()
 
-        lines = [line1, line2]
-        labels = [line.get_label() for line in lines]
-        plt.legend(lines, labels, loc="lower right")
-        plt.show()
-    else:
-        print(f"Object '{object_name}' not found in data.")
+    line1 = ax1.bar(months, time_over_30_arr, color='#ff7f0e', label="no. of minutes above 30°",zorder = 1)
+    ax1.set_xlim(0.5,12.5)
+    ax1.set_title(object_name)
+    ax1.set_ylabel("no. of minutes")
+
+    ax1.set_xticks(months)
+    ax1.set_xticklabels(month_labels,rotation = 45)
+
+    ax2 = ax1.twinx()
+    line2, = ax2.plot(months, max_time_arr, 'o', color='#1f77b4', label="time of Maximum Alt",zorder = 300)
+    ax2.set_ylabel("time")
+
+    ax2.set_yticks(np.linspace(0, 12, 7))
+    ax2.set_yticklabels([convert_time(tick) for tick in np.linspace(0, 12, 7)])
+
+    ax1.yaxis.tick_right()
+    ax1.yaxis.set_label_position("right")
+
+    ax2.yaxis.tick_left()
+    ax2.yaxis.set_label_position("left")
+
+
+    lines = [line1, line2]
+    labels = [line.get_label() for line in lines]
+    plt.legend(lines, labels)
+    plt.show()
+
 
 def mapping(objects: list):
     """
@@ -1298,7 +1341,7 @@ def color_map(data: np.ndarray, t: float, resolution: float):
     plt.tight_layout()
     plt.show()
 
-def PlotBestObjects(objects: np.ndarray, obs_date: str, timezone: str, Lon: float = 10.88846, Lat: float = 49.88474, ele: float = 282, min_frac: float = 0.08, Altitude_Threshold: float = 30, Time_Threshold: float = 120, Only_Galaxies: bool = 0, k: int = 10, colored: int = 5, Altitude_Reference: float = 30, Remove_NaN: bool = 1):
+def PlotBestObjects(objects: np.ndarray, obs_date: str, timezone: str, Lon: float = 10.88846, Lat: float = 49.88474, ele: float = 282, min_frac: float = 0.08, Altitude_Threshold: float = 30, Time_Threshold: float = 120, Galaxies: bool = 0, Nebulae: bool = 0,Supernovae_remnants:bool = 0, Clusters: bool = 0, Stars: bool = 0, All: bool = 0, k: int = 10, colored: int = 5, Altitude_Reference: float = 30, Remove_NaN: bool = 1):
     """
     Function that calculates the best objects for your location and plots them.
     
@@ -1334,7 +1377,7 @@ def PlotBestObjects(objects: np.ndarray, obs_date: str, timezone: str, Lon: floa
         If True, NaN values for size information are removed, by default 1
     """
     print("Welcome to the function calculating and plotting the best objects for your location!")
-    final_best = Final_Best(objects, obs_date, timezone, Lon, Lat, ele, min_frac, Altitude_Threshold, Time_Threshold, Only_Galaxies, Remove_NaN)
+    final_best = Final_Best(objects, obs_date, timezone, Lon, Lat, ele, min_frac, Altitude_Threshold, Time_Threshold, Galaxies, Nebulae, Supernovae_remnants, Clusters, Stars, All, Remove_NaN)
     if final_best is None:
         return None
     else:
