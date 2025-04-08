@@ -24,23 +24,6 @@ from cartopy.mpl.ticker import LatitudeFormatter, LongitudeFormatter
 import inspect
 import warnings
 
-def getStarted():
-    WelcomeMessage = """Welcome to the AstroHelper! This code is still in experimental mode! This is a short introduction to the code with all the relevant data. First of all, you will need to define your observation location. To do this, please define the variables `Lon` (Longitude in degrees), `Lat` (Latitude in degrees), `ele` (elevation in metres) as well as the observations date in format `"YYYY-MM-DD"` and your timezone with `"Europe/Berlin"` (watch out! you need quotation marks due to the date and timezone being a string). If you have your coordinates in any other format please us the helper functions below to transform to degrees! Next call the function `TelescopeData` and input the necessary parameters of your telescope so that other functions work! If there is a typo in the variable names or if you just want to experiment with the standard values, the geographic location used without input is the Dr. Remeis Observatory in Bamberg, Germany as the seat of the astronomical institute of the Friedrich-Alexander University Erlangen-Nuremberg with data of Lon: 10.88846, Lat: 49.88474, ele: 282 (°, °, m).
-    
-    Now let's get to business. Below is a list of all relevant functions and a short description. We wish you a lot of fun using the code!
-    
-    dms_to_deg, deg_to_dms, hms_to_deg, H_to_hms, deg_to_rad, rad_to_deg :  These all are transformations from one angle system to another
-    Simbad_extraction : This function is called when you want to create your own list of objects with data. It conducts a query of Simbad and saves the data into a .txt file. We recommend using the provided IC, Messier and NGC text files!
-    AdvancedViewer : This function plots the altitude and the azimuth with respect to time of day or rather night. It also shows you the object in the FOV of the telescope.
-    PathViewer : This function plots the paths of the best observable objects on the night sky. The coloured paths are the TOP 5 objects.
-    TimeViewer : This function plots the best observation time and the respective maximum height of the object, both with respect to day in a year.
-    Map : This function plots a map (RA-DEC) of objects on the night sky.
-    color_map : This function plots a colormap of points (coordinates being RA-DEC), where the color indicates the number of minutes, an object with certain coordinates would be above 30° alltitide in the observation night.
-    Now you are set to start, don't forget to write the variables and then enjoy!
-    """
-    print(WelcomeMessage)
-
-
 def dms_to_deg(d: float, m: float, s: float) -> float:
     """ This function takes coordinates in the format of degree:minute:second and calculates into decimal degrees.
     
@@ -1023,7 +1006,7 @@ def PathViewer(data: np.ndarray, obs_date: str, timezone: str, Lon: float = 10.8
     time_frame = np.linspace(start_jd, end_jd, 1000)
 
     # Create the Stereographic projection using Cartopy
-    fig, ax = plt.subplots(figsize=(10, 6), subplot_kw={'projection': ccrs.Stereographic()})
+    fig, ax = plt.subplots(figsize=(10, 8), subplot_kw={'projection': ccrs.Stereographic()})
     ax.set_title("Object paths")
 
     legend_elements = []  # Speichern Sie Element für die Legende
@@ -1034,52 +1017,48 @@ def PathViewer(data: np.ndarray, obs_date: str, timezone: str, Lon: float = 10.8
         if n in range(colored):
             colors = ["spring", "summer", "autumn", "winter", "hot"]
             cmap = plt.get_cmap(colors[n])
-            size = 1  # Größere Punkte für die ersten 5
-            alpha = 1.0  # Voll opak für die ersten 5
-            label = f"Object {data[n, 0]}"  # Label für Legende
+            size = 1
+            alpha = 1.0
+            label = f"Object {data[n, 0]}"
         else:
             cmap = plt.get_cmap("Greys_r")
-            size = 0.25  # Kleinere Punkte für die anderen
-            alpha = 1  # Teilweise transparent für die anderen
-            label = None  # Kein Label für die anderen
+            size = 0.25
+            alpha = 1 
+            label = None
 
-        A, H = Az_Alt(time_frame, float(data[n, 1]), float(data[n, 2]))
+        A, H = Az_Alt(time_frame, float(data[n, 1]), float(data[n, 2]), Lon, Lat)
         norm = Normalize(vmin=start_jd, vmax=end_jd)
         
-        # Scatter plot für Punkte
         ax.scatter(A, H, c=norm(time_frame), cmap=cmap, s=size, transform=ccrs.PlateCarree(), alpha=alpha, label=label)
         
-        # Legendenelement speichern
-        if n < 5:  # Nur für die ersten 5 hinzufügen
+
+        if n < 5:
             legend_elements.append(Line2D([0], [0], marker='o', color='w', label=f"{data[n, 0]}", markerfacecolor=cmap(0.25), markersize=10))
 
-    # Hinzufügen von Gitterlinien alle 10°
     gl = ax.gridlines(draw_labels=True, linestyle="--", color = "#c4c4c4")
-    gl.xlocator = FixedLocator(np.arange(-180, 181, 10))  # Längenlinien alle 10°
+    gl.xlocator = FixedLocator(np.arange(-180, 181, 10))
     gl.xformatter = LongitudeFormatter()
-    gl.ylocator = FixedLocator(np.arange(-90, 91, 10))    # Breitengradlinien alle 10°
+    gl.ylocator = FixedLocator(np.arange(-90, 91, 10))
 
     # Aktivieren aller Labels
     gl.xlabel_style = {'size': 8, 'color': '#a4a4a4'}
     gl.ylabel_style = {'size': 0, 'color': '#a4a4a4'}
     gl.xlabels_top = False
-    gl.ylabels_right = False
+    gl.ylabels_left = False
 
-    # Manually place altitude (latitude) labels near 0° longitude
-    x_label_position = -20  # Adjust label position dynamically if needed
+    x_label_position = -20
 
-    latitudes = range(20, 91, 10) if Lat >= 0 else range(-90, -19, 10)
-
+    if Lat >= 0:
+        latitudes = range(round(int(np.min(H)), -1), 91, 10)
+        va = "bottom"
+    else:
+        latitudes = range(round(int(np.mean(np.abs(H))), -1), 91, 10)
+        va = "bottom"
     for lat in latitudes:
-        hemisphere = "N" if Lat >= 0 else "S"
-        ax.text(x_label_position, abs(lat), f"{abs(lat)}°{hemisphere}", 
-                transform=ccrs.PlateCarree(), ha="left", va="baseline", 
+        ax.text(x_label_position, lat, f"{abs(lat)}°", 
+                transform=ccrs.PlateCarree(), ha="left", va=va, 
                 fontsize=8, color="#a4a4a4")
 
-
-
-
-    # Create the color scale
     sm = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
     sm.set_array([])
     cbar = plt.colorbar(sm, ax=ax, orientation="vertical", pad=0.1)
@@ -1093,7 +1072,6 @@ def PathViewer(data: np.ndarray, obs_date: str, timezone: str, Lon: float = 10.8
     cbar.set_ticklabels(tick_labels_local)
     cbar.set_label("Time Progression (Local Time)")
 
-    # Legende mit richtigen Farben für die Punkte
     ax.legend(handles=legend_elements, loc='upper right', fontsize=8)
 
     plt.show()
@@ -1352,7 +1330,7 @@ def PlotBestObjects(objects: np.ndarray, obs_date: str, timezone: str, Lon: floa
     obs_date : str
         date of your observation in format `"YYYY-MM-DD"`
     timezone : str 
-        your timezone in format `"Europe/Berlin"`
+        your timezotestfunctions ne in format `"Europe/Berlin"`
     Lon : float, optional
         Longitude of observation point, by default 10.88846 (Dr. Remeis Observatory)
     Lat : float, optional

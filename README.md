@@ -1,24 +1,22 @@
 # AstroHelper
-
 AstroHelper is a tool created to provide for clean, easy to understand and comprehensive help to observational astronomy.
 
 ## Introduction
 This code has been developed to help amateur astronomers easily find the best observable objects at their location and at the best observation time. We (the creators) are physics/astronomy students ourselves as well as amateur astronomers. We have found it inconvenient to always have to pull up Stellarium or other sky viewing programs/apps to view one object at a time. Our project has the goal to create a somewhat simpler and versatile tool to help amateur astronomers, especially astrophotographers.
 
-## Build locally
-To build the AstroHelper locally do following:
+## How to install AstroHelper
+
+To install AstroHelper you just need to run the pip command:
+```bash
+pip install astrohelper
 ```
-python -m pip install --upgrade build
-python -m build
-pip install .
-```
-To then test the code, run ```run.py``` file. There is a bug in the ```min_zenith_distance``` I am fixing
 
 ## Concept
-To get started you should call the function ```getStarted()```. There a brief explanation will be printed as to what variables should be defined and if they are not defined then what the standard values are. There are a handful functions which produce an output useful for the user. They all have documentation explaining what they do.
+This package functions on the basis of a data array. You can either create your own list of elements and then run ```Simbad_extraction_with_ned()```to collect all data for your objects. There are lists of NGC, IC and Messier objects provided with this project. We encourage using these as it saves time. Before continuing please set your telescope data by using teh function ```TelescopeData()```. To plot objects which are most viable for observation at your location and time use the function ```PlotBestObjects()```. There are many arguments you can set, they are listed in the documentation. The output is a plot of the best objects determined by the function, followed by single plots for each of the top 10 (this number is variable) objects. There you will see the altitude and azimuth as a function of time, aswell as the appearance and the expected luminosity in your telescope FOV.
 
 ### Future
-The code has been written as a package under the name AstroHelper. The next large step would be creating a GUI for easier interaction.
+
+Future projects are a community photo upload which can then be shown with the singular plots. A larger project is a GUI.
 
 ## Contributing
 We welcome contributions to develop the code further and create a better tool for the users. If you want to contribute pull requests are welcome. For pull requests please use the template!
