@@ -1,4 +1,4 @@
-from lib import functions
+from astrohelper import functions
 import numpy as np
 
 messier_arr = functions.load_variable_column_file("Messier.txt")

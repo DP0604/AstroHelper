@@ -1,28 +1,31 @@
 [build-system]
-requires = ["setuptools", "wheel"]
+requires = ["setuptools >= 77.0.3"]
 build-backend = "setuptools.build_meta"
 
+[tool.hatch.build.targets.wheel]
+packages = ["astrohelper"]
+
 [project]
-name = "AstroHelper"
-version = "0.1.0"
+name = "astrohelper"
+version = "0.1.7"
 description = "A Python package helping with astronomical observations"
 readme = "README.md"
 requires-python = ">=3.8"
 license = {file = "LICENSE"}
 authors = [
-  { name="Justus Sponbrucker", email="justus.sponbrucker@fau.de" }, { name="Dorian Pejic", email="dorian.pejic@fau.de" }
+  { name = "Justus Sponbrucker", email = "justus.sponbrucker@fau.de" },
+  { name = "Dorian Pejic", email = "dorian.pejic@fau.de" }
 ]
+keywords = ["astronomy", "astrophysics", "data analysis", "visualization", "astroquery", "astroplan"]
 dependencies = [
   "numpy",
   "astropy",
   "astroquery",
   "astroplan",
   "cartopy",
-  "timedelta",
   "matplotlib",
   "scipy",
-  "pytz",
-  "warnings",
+  "pytz"
 ]
 
 [project.urls]
