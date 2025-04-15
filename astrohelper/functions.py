@@ -447,6 +447,8 @@ def Type_filter(Objects: np.ndarray, Galaxies: bool = 0, Nebulae: bool = 0,Super
         Filter for galaxies, by default 0
     Nebulae : bool, optional
         Filter for nebulae, by default 0
+    Supernovae_remnants : bool, optional
+        Filter for supernova remnants, by default 0
     Clusters : bool, optional
         Filter for clusters, by default 0
     Stars : bool, optional
@@ -559,7 +561,7 @@ def Ratio(object_row: np.ndarray) -> float:
     return Diagonal/FOV
 
 
-def ratio(object_arr: np.ndarray, min_frac: float = 0.08, Remove_NaN: bool = 1) -> np.ndarray:
+def ratio(object_arr: np.ndarray, min_frac: float = 0.08, max_frac: float = 1, Remove_NaN: bool = 1) -> np.ndarray:
     """
     This function filters the array with objects with respect to their ratio to the diagonal of the FOV.
 
@@ -569,6 +571,8 @@ def ratio(object_arr: np.ndarray, min_frac: float = 0.08, Remove_NaN: bool = 1) 
         array of objects
     min_frac : float, optional
         minimum fraction object should take up in the FOV, by default 0.08
+    max_frac: float, optional
+        maximum fraction object should take up in the FOV, by default 1, if set to 0 there will bebe no maximum size for Objects
     Remove_NaN : bool, optional
         removing objects with either maj_ax or min_ax value NaN, by default 1
 
@@ -585,8 +589,9 @@ def ratio(object_arr: np.ndarray, min_frac: float = 0.08, Remove_NaN: bool = 1) 
     min_ax = np.array([safe_convert(x) for x in object_arr[:,5]])
 
     ratios = np.array([Ratio(row) for row in object_arr])
-    mask = ratios >= min_frac
-    #mask = (maj_ax >= min_frac * x_FOV) | (min_ax >= min_frac * y_FOV)
+    if max_frac == 0:
+        max_frac = 10000000000000000 
+    mask = (ratios >= min_frac) & (ratios <= max_frac)
 
     if Remove_NaN:
         mask = mask & ~np.isnan(maj_ax) & ~np.isnan(min_ax)
@@ -789,7 +794,7 @@ def time_over_x(data: np.ndarray, obs_date: str, timezone: str, Lon: float = 10.
         return result
 
 
-def Final_Best(objects: np.ndarray, obs_date: str, timezone, Lon: float = 10.88846, Lat: float = 49.88474, ele: float = 282, min_frac: float = 0.08, Altitude_Threshold: float = 30, Time_Threshold: float = 120, Galaxies: bool = 0, Nebulae: bool = 0,Supernovae_remnants:bool = 0, Clusters: bool = 0, Stars: bool = 0, All: bool = 0, Remove_NaN: bool = 1):
+def Final_Best(objects: np.ndarray, obs_date: str, timezone, Lon: float = 10.88846, Lat: float = 49.88474, ele: float = 282, min_frac: float = 0.08, max_frac: float = 1, Altitude_Threshold: float = 30, Time_Threshold: float = 120, Galaxies: bool = 0, Nebulae: bool = 0,Supernovae_remnants:bool = 0, Clusters: bool = 0, Stars: bool = 0, All: bool = 0, Remove_NaN: bool = 1):
     """
     This function takes in an array of objects with SIMBAD data, filters for morphological type, calculates surface brightness, ratio, filters for minimal zenith distance, time over altitude and sorts from best to worst.
 
@@ -809,12 +814,24 @@ def Final_Best(objects: np.ndarray, obs_date: str, timezone, Lon: float = 10.888
         elevation of observation point, by default 282 (Dr. Remeis Observatory)
     min_frac : float, optional
         minimal fraction of FOV, by default 0.08
+    max_frac : float, optional
+        maximal fraction of FOV, by default 1, if set to 0 there will be no maximum size for Objects
     Altitude_Threshold : float, optional
         minimal altitude, by default 30
     Time_Threshold : float, optional
         minimal time over `Altitude_Threshold`, by default 120
-    Only_Galaxies : bool, optional
-        filter for galaxies, by default 0
+    Galaxies : bool, optional
+        Filter for galaxies, by default 0
+    Nebulae : bool, optional
+        Filter for nebulae, by default 0
+    Supernovae_remnants : bool, optional
+        Filter for supernova remnants, by default 0
+    Clusters : bool, optional
+        Filter for clusters, by default 0
+    Stars : bool, optional
+        Filter for stars, by default 0
+    All : bool, optional
+        Filter for all types, by default 0
     Remove_NaN : bool, optional
         removes NaN in ratio and surface brightness recommended do not touch, by default 1
 
@@ -940,7 +957,12 @@ def AdvancedViewer(data: np.ndarray, obs_date: str, timezone: str, Lon: float = 
 
         # Object Size in FOV
         sb = surface_brightness_values[n]
-        alpha = 0.5 if sb is None or np.isnan(sb) else 1 - ((sb - min_sb) / (max_sb - min_sb)) * 0.75
+
+        if min_sb == max_sb:
+            alpha = 0.5 if sb is None or np.isnan(sb) else 1
+        else:
+            alpha = 0.5 if sb is None or np.isnan(sb) else 1 - ((sb - min_sb) / (max_sb - min_sb)) * 0.75
+
         ax3 = fig.add_subplot(133)
         ellipse = Ellipse((0, 0), width=float(data[n, 4]) / x_FOV, height=float(data[n, 5]) / y_FOV, angle=0, alpha=alpha)
         ax3.add_patch(ellipse)
@@ -1319,7 +1341,7 @@ def color_map(data: np.ndarray, t: float, resolution: float):
     plt.tight_layout()
     plt.show()
 
-def PlotBestObjects(objects: np.ndarray, obs_date: str, timezone: str, Lon: float = 10.88846, Lat: float = 49.88474, ele: float = 282, min_frac: float = 0.08, Altitude_Threshold: float = 30, Time_Threshold: float = 120, Galaxies: bool = 0, Nebulae: bool = 0,Supernovae_remnants:bool = 0, Clusters: bool = 0, Stars: bool = 0, All: bool = 0, k: int = 10, colored: int = 5, Altitude_Reference: float = 30, Remove_NaN: bool = 1):
+def PlotBestObjects(objects: np.ndarray, obs_date: str, timezone: str, Lon: float = 10.88846, Lat: float = 49.88474, ele: float = 282, min_frac: float = 0.08, max_frac: float = 1, Altitude_Threshold: float = 30, Time_Threshold: float = 120, Galaxies: bool = 0, Nebulae: bool = 0,Supernovae_remnants:bool = 0, Clusters: bool = 0, Stars: bool = 0, All: bool = 0, k: int = 10, colored: int = 5, Altitude_Reference: float = 30, Remove_NaN: bool = 1):
     """
     Function that calculates the best objects for your location and plots them.
     
@@ -1339,6 +1361,8 @@ def PlotBestObjects(objects: np.ndarray, obs_date: str, timezone: str, Lon: floa
         elevation of observation point, by default 282 (Dr. Remeis Observatory)
     min_frac : float, optional
         minimum fraction of the object above the horizon, by default 0.08
+    max_frac : float, optional
+        maximum fraction of the object above the horizon, by default 1, if set to 0 there will be no maximum size for Objects
     Altitude_Threshold : float, optional
         Minimum altitude the object must rise above, by default 30
     Time_Threshold : float, optional
@@ -1347,6 +1371,18 @@ def PlotBestObjects(objects: np.ndarray, obs_date: str, timezone: str, Lon: floa
         If True, only galaxies are considered, by default 0
     k : int, optional
         number of objects to be plotted, by default 10
+    Galaxies : bool, optional
+        Filter for galaxies, by default 0
+    Nebulae : bool, optional
+        Filter for nebulae, by default 0
+    Supernovae_remnants : bool, optional
+        Filter for supernova remnants, by default 0
+    Clusters : bool, optional
+        Filter for clusters, by default 0
+    Stars : bool, optional
+        Filter for stars, by default 0
+    All : bool, optional
+        Filter for all types, by default 0
     colored : int, optional
         top `n` objects to be coloured, must be <= `k`, by default 5
     Altitude_Reference : float, optional
