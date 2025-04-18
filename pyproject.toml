@@ -7,7 +7,7 @@ packages = ["astrohelper"]
 
 [project]
 name = "astrohelper"
-version = "0.1.7"
+version = "0.1.1"
 description = "A Python package helping with astronomical observations"
 readme = "README.md"
 requires-python = ">=3.8"
