@@ -571,7 +571,7 @@ def ratio(object_arr: np.ndarray, min_frac: float = 0.08, max_frac: float = 1, R
         array of objects
     min_frac : float, optional
         minimum fraction object should take up in the FOV, by default 0.08
-    max_frac: float, optional
+    max_frac : float, optional
         maximum fraction object should take up in the FOV, by default 1, if set to 0 there will bebe no maximum size for Objects
     Remove_NaN : bool, optional
         removing objects with either maj_ax or min_ax value NaN, by default 1
@@ -794,7 +794,7 @@ def time_over_x(data: np.ndarray, obs_date: str, timezone: str, Lon: float = 10.
         return result
 
 
-def Final_Best(objects: np.ndarray, obs_date: str, timezone, Lon: float = 10.88846, Lat: float = 49.88474, ele: float = 282, min_frac: float = 0.08, max_frac: float = 1, Altitude_Threshold: float = 30, Time_Threshold: float = 120, Galaxies: bool = 0, Nebulae: bool = 0,Supernovae_remnants:bool = 0, Clusters: bool = 0, Stars: bool = 0, All: bool = 0, Remove_NaN: bool = 1):
+def Final_Best(objects: np.ndarray, obs_date: str, timezone, Lon: float = 10.88846, Lat: float = 49.88474, ele: float = 282, min_frac: float = 0.08, max_frac: float = 1, Altitude_Threshold: float = 30, Time_Threshold: float = 120, Galaxies: bool = 0, Nebulae: bool = 0,Supernovae_remnants: bool = 0, Clusters: bool = 0, Stars: bool = 0, All: bool = 0, Remove_NaN: bool = 1):
     """
     This function takes in an array of objects with SIMBAD data, filters for morphological type, calculates surface brightness, ratio, filters for minimal zenith distance, time over altitude and sorts from best to worst.
 
@@ -842,7 +842,7 @@ def Final_Best(objects: np.ndarray, obs_date: str, timezone, Lon: float = 10.888
     """  
     objects_filtered = Type_filter(objects, Galaxies=Galaxies, Nebulae=Nebulae, Supernovae_remnants=Supernovae_remnants, Clusters=Clusters, Stars=Stars, All=All)
     objects_filtered = Surface_Brightness(objects_filtered)
-    objects_filtered = ratio(objects_filtered, min_frac, Remove_NaN)
+    objects_filtered = ratio(objects_filtered, min_frac, max_frac, Remove_NaN)
     objects_filtered = min_zenith_filter(objects_filtered,Lat, 40)
     objects_filtered = time_over_x_filter(objects_filtered, obs_date, timezone, Lon, Lat, ele, Altitude_Threshold, Time_Threshold)
     if objects_filtered is None:
@@ -1391,7 +1391,7 @@ def PlotBestObjects(objects: np.ndarray, obs_date: str, timezone: str, Lon: floa
         If True, NaN values for size information are removed, by default 1
     """
     print("Welcome to the function calculating and plotting the best objects for your location!")
-    final_best = Final_Best(objects, obs_date, timezone, Lon, Lat, ele, min_frac, Altitude_Threshold, Time_Threshold, Galaxies, Nebulae, Supernovae_remnants, Clusters, Stars, All, Remove_NaN)
+    final_best = Final_Best(objects, obs_date, timezone, Lon, Lat, ele, min_frac, max_frac, Altitude_Threshold, Time_Threshold, Galaxies, Nebulae, Supernovae_remnants, Clusters, Stars, All, Remove_NaN)
     if final_best is None:
         return None
     else:
