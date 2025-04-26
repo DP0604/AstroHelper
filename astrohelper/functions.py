@@ -59,10 +59,10 @@ def deg_to_dms(degrees: float) -> tuple[int, int, float]:
     tuple[int, int, float]
         Degrees, minutes, seconds
     """
-    deg=np.abs(degrees)
-    d=np.round(np.floor(deg)*degrees/deg,0)
-    m=np.round(np.floor(((deg-np.abs(d))*60)),0)
-    s=np.round(((deg-np.abs(d)-(m/60))*3600),2)
+    deg = np.abs(degrees)
+    d = np.round(np.floor(deg)*degrees/deg,0)
+    m = np.round(np.floor(((deg-np.abs(d))*60)),0)
+    s = np.round(((deg-np.abs(d)-(m/60))*3600),2)
     return d,m,s
 
 def hms_to_deg(h: float, m: float, s: float) -> float:
@@ -100,9 +100,9 @@ def H_to_hms(H: float) -> tuple[int, int, float]:
     tuple[int, int, float]
         Hours, minutes, seconds
     """
-    h=np.floor(H)
-    m=np.floor((H-h)*60)
-    s=np.round((H-h-(m/60))*3600,2)
+    h = np.floor(H)
+    m = np.floor((H-h)*60)
+    s = np.round((H-h-(m/60))*3600,2)
     return h,m,s
 
 def deg_to_rad(degrees: float) -> float:
@@ -205,7 +205,6 @@ def Az_Alt(zeit_jd: float, ra_deg: float, dec_deg: float, Lon: float = 10.88846,
         Azimuth of given position in degrees, Altitude of given position in degrees
     """
 
-    pi=np.pi
     lat = deg_to_rad(Lat)
     R_y = np.array([[np.sin(lat),0,-np.cos(lat)],[0,1,0],[np.cos(lat),0,np.sin(lat)]])
     diag = np.array([[-1,0,0],[0,1,0],[0,0,1]])
@@ -219,8 +218,8 @@ def Az_Alt(zeit_jd: float, ra_deg: float, dec_deg: float, Lon: float = 10.88846,
         R_z = np.array([[np.cos(t_p), np.sin(t_p), 0],[-np.sin(t_p), np.cos(t_p), 0],[0, 0, 1]])
         matrices.append(R_z)
     R_z = matrices
-    ra=deg_to_rad(ra_deg)
-    dec=deg_to_rad(dec_deg) 
+    ra = deg_to_rad(ra_deg)
+    dec = deg_to_rad(dec_deg) 
     R = np.array([[np.cos(ra)*np.cos(dec)],[np.sin(ra)*np.cos(dec)],[np.sin(dec)]])
     M = diag@(R_y@(R_z@R))
     H = np.arcsin(M[:,2,:])
@@ -243,10 +242,10 @@ def zenith_distance(Altitude: float) -> float:
     float
         Distance from zenith
     """
-    z=90-Altitude
+    z = 90-Altitude
     return z
     
-def extract_messier_name(object_ids):
+def extract_messier_name(object_ids) -> None:
     """
     Check if an object's ID list contains a Messier name.
 
@@ -268,7 +267,7 @@ def extract_messier_name(object_ids):
     
     return None
 
-def extract_NGC_name(object_ids):
+def extract_NGC_name(object_ids) -> None:
     """
     Check if an object's ID list contains a NGC name.
 
@@ -397,11 +396,11 @@ def Simbad_extraction_with_ned(objects: list, name: str = "NaN", batch_size: int
             except Exception as e:
                 print(f"Error processing {obj}: {e}")
 
-    data_npar = np.array(data, dtype=object)
+    data_npar = np.array(data, dtype = object)
 
     if name != "NaN":
         # Save the data to a text file
-        np.savetxt(name, data_npar, fmt='%s')
+        np.savetxt(name, data_npar, fmt = '%s')
     # Saves the numpy array as a file under the name [name].txt as provided in the function
 
     return data_npar
@@ -686,22 +685,20 @@ def time_over_x_filter(data: np.ndarray, obs_date: str, timezone: str, Lon: floa
     np.ndarray
         array with deleted data not fulfilling the conditions
     """
-    location = EarthLocation.from_geodetic(lon= Lon*u.deg, lat = Lat*u.deg, height = ele*u.m)
-    observer = Observer(location=location, timezone=timezone)
+    location = EarthLocation.from_geodetic(lon = Lon*u.deg, lat = Lat*u.deg, height = ele*u.m)
+    observer = Observer(location = location, timezone = timezone)
 
     date_time = Time(obs_date)
     with warnings.catch_warnings():
         warnings.simplefilter("ignore", TargetAlwaysUpWarning)
-        start_time_utc = observer.sun_set_time(date_time, which="nearest", horizon=-12 * u.deg)
-        end_time_utc = observer.sun_rise_time(date_time, which="nearest", horizon=-12 * u.deg)
-        time_fail = observer.sun_set_time(date_time, which="nearest", horizon=-80 * u.deg).to_datetime(timezone=pytz.timezone(timezone))
+        start_time_utc = observer.sun_set_time(date_time, which = "nearest", horizon = -12 * u.deg)
+        end_time_utc = observer.sun_rise_time(date_time, which = "nearest", horizon = -12 * u.deg)
+        time_fail = observer.sun_set_time(date_time, which = "nearest", horizon = -80 * u.deg).to_datetime(timezone = pytz.timezone(timezone))
 
     tz = pytz.timezone(timezone)
-    start_time = start_time_utc.to_datetime(timezone=tz)
-    end_time = end_time_utc.to_datetime(timezone=tz)
+    start_time = start_time_utc.to_datetime(timezone = tz)
+    end_time = end_time_utc.to_datetime(timezone = tz)
     
-    
-
     if isinstance(start_time - end_time, type(time_fail)):
         return None
 
@@ -716,10 +713,10 @@ def time_over_x_filter(data: np.ndarray, obs_date: str, timezone: str, Lon: floa
         Time_Night_T = Time_Night + T
 
         keep = []
-        more_del=[]
+        more_del = []
 
         for n in range(len(data[:,0])):
-            if np.sum((Az_Alt(Time_Night_T,float(data[n,1]), float(data[n, 2]), Lon, Lat))[1] > Altitude_Threshold) >=Time_Threshold:
+            if np.sum((Az_Alt(Time_Night_T,float(data[n,1]), float(data[n, 2]), Lon, Lat))[1] > Altitude_Threshold) >= Time_Threshold:
                 keep.append(n) 
             else: 
                 more_del.append(n)
@@ -752,19 +749,19 @@ def time_over_x(data: np.ndarray, obs_date: str, timezone: str, Lon: float = 10.
         appended array of objects with duration over `Altitude_Threshold` in minutes
     """
         
-    location = EarthLocation.from_geodetic(lon= Lon* u.deg, lat = Lat* u.deg, height = ele*u.m)
-    observer = Observer(location=location, timezone=timezone)
+    location = EarthLocation.from_geodetic(lon = Lon* u.deg, lat = Lat* u.deg, height = ele*u.m)
+    observer = Observer(location = location, timezone = timezone)
 
     date_time = Time(obs_date)
     with warnings.catch_warnings():
         warnings.simplefilter("ignore", TargetAlwaysUpWarning)
-        start_time_utc = observer.sun_set_time(date_time, which="nearest", horizon=-12 * u.deg)
-        end_time_utc = observer.sun_rise_time(date_time, which="nearest", horizon=-12 * u.deg)
-        time_fail = observer.sun_set_time(date_time, which="nearest", horizon=-80 * u.deg).to_datetime(timezone=pytz.timezone(timezone))
+        start_time_utc = observer.sun_set_time(date_time, which = "nearest", horizon = -12 * u.deg)
+        end_time_utc = observer.sun_rise_time(date_time, which = "nearest", horizon = -12 * u.deg)
+        time_fail = observer.sun_set_time(date_time, which = "nearest", horizon = -80 * u.deg).to_datetime(timezone = pytz.timezone(timezone))
 
     tz = pytz.timezone(timezone)
-    start_time = start_time_utc.to_datetime(timezone=tz)
-    end_time = end_time_utc.to_datetime(timezone=tz)
+    start_time = start_time_utc.to_datetime(timezone = tz)
+    end_time = end_time_utc.to_datetime(timezone = tz)
     
 
     if isinstance(start_time - end_time, type(time_fail)):
@@ -789,7 +786,7 @@ def time_over_x(data: np.ndarray, obs_date: str, timezone: str, Lon: float = 10.
                 N = np.sum((Az_Alt(Time_Night_T, float(data[n, 1]), float(data[n, 2]), Lon, Lat))[1] > Altitude_Threshold)
                 data_m.append(N)
             data_m_arr = np.array(data_m, dtype = float)
-            result = np.append(data, data_m_arr[:, None], axis=1)
+            result = np.append(data, data_m_arr[:, None], axis = 1)
 
         return result
 
@@ -840,7 +837,7 @@ def Final_Best(objects: np.ndarray, obs_date: str, timezone, Lon: float = 10.888
     np.ndarray
         filtered object array
     """  
-    objects_filtered = Type_filter(objects, Galaxies=Galaxies, Nebulae=Nebulae, Supernovae_remnants=Supernovae_remnants, Clusters=Clusters, Stars=Stars, All=All)
+    objects_filtered = Type_filter(objects, Galaxies = Galaxies, Nebulae = Nebulae, Supernovae_remnants = Supernovae_remnants, Clusters = Clusters, Stars = Stars, All = All)
     objects_filtered = Surface_Brightness(objects_filtered)
     objects_filtered = ratio(objects_filtered, min_frac, max_frac, Remove_NaN)
     objects_filtered = min_zenith_filter(objects_filtered,Lat, 40)
@@ -850,7 +847,7 @@ def Final_Best(objects: np.ndarray, obs_date: str, timezone, Lon: float = 10.888
         return None
     else:
         objects_filtered = time_over_x(objects_filtered, obs_date, timezone, Lon, Lat, ele, Altitude_Threshold)
-        objects_filtered = np.array(sorted(objects_filtered, key=lambda x: ( float(x[-1]), float(x[4])), reverse=True),dtype = object)
+        objects_filtered = np.array(sorted(objects_filtered, key=lambda x: ( float(x[-1]), float(x[4])), reverse = True),dtype = object)
         return objects_filtered
 
 def AdvancedViewer(data: np.ndarray, obs_date: str, timezone: str, Lon: float = 10.88846, Lat: float = 49.88474, ele: float = 282, k: int = 10, Altitude_Reference: float = 30):
@@ -876,16 +873,16 @@ def AdvancedViewer(data: np.ndarray, obs_date: str, timezone: str, Lon: float = 
     Altitude_Reference : float,
         Reference at an definable altitude, by default 30
     """
-    location = EarthLocation.from_geodetic(lon= Lon* u.deg, lat = Lat* u.deg, height = ele*u.m)
-    observer = Observer(location=location, timezone=timezone)
+    location = EarthLocation.from_geodetic(lon = Lon* u.deg, lat = Lat* u.deg, height = ele*u.m)
+    observer = Observer(location = location, timezone = timezone)
 
     date_time = Time(obs_date)
-    start_time_utc = observer.sun_set_time(date_time, which="nearest",horizon=-12 * u.deg)
-    end_time_utc = observer.sun_rise_time(date_time, which="nearest",horizon=-12 * u.deg)
+    start_time_utc = observer.sun_set_time(date_time, which = "nearest",horizon = -12 * u.deg)
+    end_time_utc = observer.sun_rise_time(date_time, which = "nearest",horizon = -12 * u.deg)
 
     tz = pytz.timezone(timezone)
-    start_time = start_time_utc.to_datetime(timezone=tz)
-    end_time = end_time_utc.to_datetime(timezone=tz)
+    start_time = start_time_utc.to_datetime(timezone = tz)
+    end_time = end_time_utc.to_datetime(timezone = tz)
 
     start_time_wtz = start_time.astimezone(tz)
     end_time_wtz = end_time.astimezone(tz)
@@ -900,12 +897,12 @@ def AdvancedViewer(data: np.ndarray, obs_date: str, timezone: str, Lon: float = 
     Time_Night_T = Time_Night + T
     
     minutes = np.linspace(0, p, p)
-    time_data_wtz = [start_time + timedelta(minutes=int(minute)) for minute in minutes]
+    time_data_wtz = [start_time + timedelta(minutes = int(minute)) for minute in minutes]
 
-    start_time = start_time_wtz.replace(tzinfo=None)
-    end_time = end_time_wtz.replace(tzinfo=None)
+    start_time = start_time_wtz.replace(tzinfo = None)
+    end_time = end_time_wtz.replace(tzinfo = None)
 
-    time_data = [dt.replace(tzinfo=None) for dt in time_data_wtz]
+    time_data = [dt.replace(tzinfo = None) for dt in time_data_wtz]
 
     x_FOV = Fov(x_ax)
     y_FOV = Fov(y_ax)
@@ -932,12 +929,12 @@ def AdvancedViewer(data: np.ndarray, obs_date: str, timezone: str, Lon: float = 
         A = [x + 360 if x < 0 else x for x in a]
 
         # Create new figure for each object
-        fig = plt.figure(figsize=(15, 3))
+        fig = plt.figure(figsize = (15, 3))
 
         # Altitude Plot
         ax1 = fig.add_subplot(131)
-        ax1.plot(time_data, H, label="Altitude")
-        ax1.plot(time_data, np.linspace(Altitude_Reference, Altitude_Reference, p), label=f"{Altitude_Reference}° Reference")
+        ax1.plot(time_data, H, label = "Altitude")
+        ax1.plot(time_data, np.linspace(Altitude_Reference, Altitude_Reference, p), label = f"{Altitude_Reference}° Reference")
         ax1.set_title(f"{data[n, 0]} - Altitude")
         ax1.set_ylabel("Altitude in °")
         ax1.set_xlim(start_time, end_time)
@@ -947,7 +944,7 @@ def AdvancedViewer(data: np.ndarray, obs_date: str, timezone: str, Lon: float = 
 
         # Azimuth Plot
         ax2 = fig.add_subplot(132)
-        ax2.plot(time_data, A, "-", label="Azimuth")
+        ax2.plot(time_data, A, "-", label = "Azimuth")
         ax2.set_title(f"{data[n, 0]} - Azimuth")
         ax2.set_ylabel("Azimuth in °")
         ax2.set_xlim(start_time, end_time)
@@ -964,7 +961,7 @@ def AdvancedViewer(data: np.ndarray, obs_date: str, timezone: str, Lon: float = 
             alpha = 0.5 if sb is None or np.isnan(sb) else 1 - ((sb - min_sb) / (max_sb - min_sb)) * 0.75
 
         ax3 = fig.add_subplot(133)
-        ellipse = Ellipse((0, 0), width=float(data[n, 4]) / x_FOV, height=float(data[n, 5]) / y_FOV, angle=0, alpha=alpha)
+        ellipse = Ellipse((0, 0), width = float(data[n, 4]) / x_FOV, height = float(data[n, 5]) / y_FOV, angle = 0, alpha = alpha)
         ax3.add_patch(ellipse)
         ax3.set_xlim(-0.5, 0.5)
         ax3.set_ylim(-0.5, 0.5)
@@ -979,11 +976,11 @@ def AdvancedViewer(data: np.ndarray, obs_date: str, timezone: str, Lon: float = 
             fig.text(0.66, 0.91, f"{np.float64(data[n, -2]):.3f} mag/arcmin^2")
 
         plt.tight_layout()
-        plt.show(block=False)  # Show without blocking execution
+        plt.show(block = False)  # Show without blocking execution
         plt.pause(0.5)  # Allow time to render
 
     plt.ioff()  # Disable interactive mode
-    plt.show(block=True)  # Keep all figures open
+    plt.show(block = True)  # Keep all figures open
 
 def PathViewer(data: np.ndarray, obs_date: str, timezone: str, Lon: float = 10.88846, Lat: float = 49.88474, ele: float = 282, k: int = 10, colored: int = 5):
     """
@@ -1009,16 +1006,16 @@ def PathViewer(data: np.ndarray, obs_date: str, timezone: str, Lon: float = 10.8
         top `n` objects to be coloured, must be <= `k`, by default 5
     """
 
-    location = EarthLocation.from_geodetic(lon= Lon* u.deg, lat = Lat* u.deg, height = ele*u.m)
-    observer = Observer(location=location, timezone=timezone)
+    location = EarthLocation.from_geodetic(lon = Lon* u.deg, lat = Lat* u.deg, height = ele*u.m)
+    observer = Observer(location=location, timezone = timezone)
 
     date_time = Time(obs_date)
-    start_time_utc = observer.sun_set_time(date_time, which="nearest",horizon=-12 * u.deg)
-    end_time_utc = observer.sun_rise_time(date_time, which="nearest",horizon=-12 * u.deg)
+    start_time_utc = observer.sun_set_time(date_time, which = "nearest",horizon = -12 * u.deg)
+    end_time_utc = observer.sun_rise_time(date_time, which = "nearest",horizon = -12 * u.deg)
 
     tz = pytz.timezone(timezone)
-    start_time = start_time_utc.to_datetime(timezone=tz)
-    end_time = end_time_utc.to_datetime(timezone=tz)
+    start_time = start_time_utc.to_datetime(timezone = tz)
+    end_time = end_time_utc.to_datetime(timezone = tz)
    
     # Convert start & end time to Julian Date
     start_jd = Time(start_time).jd
@@ -1028,7 +1025,7 @@ def PathViewer(data: np.ndarray, obs_date: str, timezone: str, Lon: float = 10.8
     time_frame = np.linspace(start_jd, end_jd, 1000)
 
     # Create the Stereographic projection using Cartopy
-    fig, ax = plt.subplots(figsize=(10, 8), subplot_kw={'projection': ccrs.Stereographic()})
+    fig, ax = plt.subplots(figsize = (10, 8), subplot_kw = {'projection': ccrs.Stereographic()})
     ax.set_title("Object paths")
 
     legend_elements = []  # Speichern Sie Element für die Legende
@@ -1049,15 +1046,15 @@ def PathViewer(data: np.ndarray, obs_date: str, timezone: str, Lon: float = 10.8
             label = None
 
         A, H = Az_Alt(time_frame, float(data[n, 1]), float(data[n, 2]), Lon, Lat)
-        norm = Normalize(vmin=start_jd, vmax=end_jd)
+        norm = Normalize(vmin = start_jd, vmax = end_jd)
         
-        ax.scatter(A, H, c=norm(time_frame), cmap=cmap, s=size, transform=ccrs.PlateCarree(), alpha=alpha, label=label)
+        ax.scatter(A, H, c = norm(time_frame), cmap = cmap, s = size, transform = ccrs.PlateCarree(), alpha = alpha, label = label)
         
 
         if n < 5:
-            legend_elements.append(Line2D([0], [0], marker='o', color='w', label=f"{data[n, 0]}", markerfacecolor=cmap(0.25), markersize=10))
+            legend_elements.append(Line2D([0], [0], marker = 'o', color = 'w', label = f"{data[n, 0]}", markerfacecolor = cmap(0.25), markersize = 10))
 
-    gl = ax.gridlines(draw_labels=True, linestyle="--", color = "#c4c4c4")
+    gl = ax.gridlines(draw_labels = True, linestyle="--", color = "#c4c4c4")
     gl.xlocator = FixedLocator(np.arange(-180, 181, 10))
     gl.xformatter = LongitudeFormatter()
     gl.ylocator = FixedLocator(np.arange(-90, 91, 10))
@@ -1078,15 +1075,15 @@ def PathViewer(data: np.ndarray, obs_date: str, timezone: str, Lon: float = 10.8
         va = "bottom"
     for lat in latitudes:
         ax.text(x_label_position, lat, f"{abs(lat)}°", 
-                transform=ccrs.PlateCarree(), ha="left", va=va, 
-                fontsize=8, color="#a4a4a4")
+                transform = ccrs.PlateCarree(), ha = "left", va = va, 
+                fontsize = 8, color = "#a4a4a4")
 
-    sm = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
+    sm = plt.cm.ScalarMappable(cmap = cmap, norm = norm)
     sm.set_array([])
-    cbar = plt.colorbar(sm, ax=ax, orientation="vertical", pad=0.1)
-    tick_labels_jd = np.linspace(start_jd, end_jd, num=5)
+    cbar = plt.colorbar(sm, ax = ax, orientation = "vertical", pad = 0.1)
+    tick_labels_jd = np.linspace(start_jd, end_jd, num = 5)
     tick_labels_local = [
-        Time(jd, format='jd').to_datetime(timezone=tz).strftime("%H:%M:%S")
+        Time(jd, format = 'jd').to_datetime(timezone = tz).strftime("%H:%M:%S")
         for jd in tick_labels_jd
     ]
     
@@ -1158,7 +1155,7 @@ def TimeViewer(object_name: str,timezone: str = "Europe/Berlin"):
     # Plotting
     fig, ax1 = plt.subplots()
 
-    line1 = ax1.bar(months, time_over_30_arr, color='#ff7f0e', label="no. of minutes above 30°",zorder = 1)
+    line1 = ax1.bar(months, time_over_30_arr, color = '#ff7f0e', label = "no. of minutes above 30°",zorder = 1)
     ax1.set_xlim(0.5,12.5)
     ax1.set_title(object_name)
     ax1.set_ylabel("no. of minutes")
@@ -1167,7 +1164,7 @@ def TimeViewer(object_name: str,timezone: str = "Europe/Berlin"):
     ax1.set_xticklabels(month_labels,rotation = 45)
 
     ax2 = ax1.twinx()
-    line2, = ax2.plot(months, max_time_arr, 'o', color='#1f77b4', label="time of Maximum Alt",zorder = 300)
+    line2, = ax2.plot(months, max_time_arr, 'o', color = '#1f77b4', label = "time of Maximum Alt",zorder = 300)
     ax2.set_ylabel("time")
 
     ax2.set_yticks(np.linspace(0, 12, 7))
@@ -1212,8 +1209,8 @@ def mapping(objects: list):
             float(objects[n, 1]), 
             float(objects[n, 2]), 
             ".", 
-            color=colors[n], 
-            label=objects[n, 0] if n < 10 else ""  
+            color = colors[n], 
+            label = objects[n, 0] if n < 10 else ""  
         )
 
 
@@ -1307,15 +1304,14 @@ def color_map(data: np.ndarray, t: float, resolution: float):
     X_grid, Y_grid = np.meshgrid(x_lin, y_lin)
 
     # Interpolate C onto the grid
-    C_grid = griddata((X, Y), C, (X_grid, Y_grid), method='nearest')
+    C_grid = griddata((X, Y), C, (X_grid, Y_grid), method = 'nearest')
     
     # Plot
-    p = ax.pcolormesh(X_grid, Y_grid, C_grid, shading="nearest")
-    cbar = fig.colorbar(p, ax=ax)
+    p = ax.pcolormesh(X_grid, Y_grid, C_grid, shading = "nearest")
+    cbar = fig.colorbar(p, ax = ax)
     cbar.set_label("Minutes above 30° Alt")
 
-    contour = ax.contour(X_grid, Y_grid, C_grid, levels=[t], colors='red', linewidths=2)
-    #ax.clabel(contour, fmt="C=120", inline=True, fontsize=10)
+    contour = ax.contour(X_grid, Y_grid, C_grid, levels = [t], colors = 'red', linewidths = 2)
 
     contour_paths = contour.allsegs[0]  # Get all contour paths
 
