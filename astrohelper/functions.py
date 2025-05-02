@@ -1392,7 +1392,7 @@ def color_map(data: np.ndarray, t: float, resolution: float) -> None:
     plt.tight_layout()
     plt.show()
 
-def PlotBestObjects(objects: np.ndarray, obs_date: str, timezone: str, Lon: float = 10.88846, Lat: float = 49.88474, ele: float = 282, min_frac: float = 0.08, max_frac: float = 1, Altitude_Threshold: float = 30, Time_Threshold: float = 120, Galaxies: bool = 0, Nebulae: bool = 0,Supernovae_remnants:bool = 0, Clusters: bool = 0, Stars: bool = 0, All: bool = 0, k: int = 10, colored: int = 5, Altitude_Reference: float = 30, Remove_NaN: bool = 1) -> None:
+def PlotBestObjects(objects: np.ndarray, obs_date: str, timezone: str, Lon: float = 10.88846, Lat: float = 49.88474, ele: float = 282, min_frac: float = 0.08, max_frac: float = 1, Altitude_Threshold: float = 30, Time_Threshold: float = 120, Galaxies: bool = 0, Nebulae: bool = 0, Supernovae_remnants: bool = 0, Clusters: bool = 0, Stars: bool = 0, All: bool = 0, k: int = 10, colored: int = 5, Altitude_Reference: float = 30, Remove_NaN: bool = 1) -> None:
     """
     Function that calculates the best objects for your location and plots them.
     
@@ -1418,10 +1418,6 @@ def PlotBestObjects(objects: np.ndarray, obs_date: str, timezone: str, Lon: floa
         Minimum altitude the object must rise above, by default 30
     Time_Threshold : float, optional
         Minimum time the object must be above `Altitude_Threshold`, by default 120
-    Only_Galaxies : bool, optional
-        If True, only galaxies are considered, by default 0
-    k : int, optional
-        number of objects to be plotted, by default 10
     Galaxies : bool, optional
         Filter for galaxies, by default 0
     Nebulae : bool, optional
@@ -1434,6 +1430,8 @@ def PlotBestObjects(objects: np.ndarray, obs_date: str, timezone: str, Lon: floa
         Filter for stars, by default 0
     All : bool, optional
         Filter for all types, by default 0
+    k : int, optional
+        number of objects to be plotted, by default 10
     colored : int, optional
         top `n` objects to be coloured, must be <= `k`, by default 5
     Altitude_Reference : float, optional
