@@ -1111,6 +1111,23 @@ def PathViewer(data: np.ndarray, obs_date: str, timezone: str, Lon: float = 10.8
     ax.legend(handles=legend_elements, loc='upper right', fontsize=8)
 
     plt.show()
+    
+def convert_time(value: float) -> str:
+    """
+    This function converts a time value to a 24-hour format string.
+
+    Parameters
+    ----------
+    value : float
+        time value
+
+    Returns
+    -------
+    str
+        time in HH:MM format
+    """    
+    hours = (value + 18) % 24
+    return f"{int(hours):02d}:00"
 
 def TimeViewer(object_name: str, timezone: str = "Europe/Berlin", AbsoluteTime: bool = 1, Lon: float = 10.88846, Lat: float = 49.88474, ele: float = 282, Altitude_Threshold: float = 30) -> None:
     """
@@ -1194,14 +1211,6 @@ def TimeViewer(object_name: str, timezone: str = "Europe/Berlin", AbsoluteTime: 
     time_over_30_arr = np.array(time_over_30_list)
     Night_time_arr = np.array(Night_time)
 
-    # print(max_time_arr)
-    # print(time_over_30_arr[0])
-
-    def convert_time(value):
-        """Converts time (0-12) to 18:00-6:00 format."""
-        hours = (value + 18) % 24
-        return f"{int(hours):02d}:00"
-
     month_labels = [calendar.month_name[i] for i in range(1, 13)]
     # Plotting
     fig, ax1 = plt.subplots()
@@ -1235,6 +1244,7 @@ def TimeViewer(object_name: str, timezone: str = "Europe/Berlin", AbsoluteTime: 
 
     lines = [line1, line2]
     labels = [line.get_label() for line in lines]
+    
     plt.legend(lines, labels)
     plt.show()
 
