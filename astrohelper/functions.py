@@ -939,6 +939,8 @@ def AdvancedViewer(data: np.ndarray, obs_date: str, timezone: str, Lon: float = 
         ax1.set_ylabel("Altitude in °")
         ax1.set_xlim(start_time, end_time)
         ax1.xaxis.set_major_formatter(mdates.DateFormatter('%H:%M'))
+        for label in ax1.get_xticklabels():
+            label.set_rotation(45)
         ax1.legend()
         ax1.grid()
 
@@ -949,6 +951,8 @@ def AdvancedViewer(data: np.ndarray, obs_date: str, timezone: str, Lon: float = 
         ax2.set_ylabel("Azimuth in °")
         ax2.set_xlim(start_time, end_time)
         ax2.xaxis.set_major_formatter(mdates.DateFormatter('%H:%M'))
+        for label in ax2.get_xticklabels():
+            label.set_rotation(45)
         ax2.legend()
         ax2.grid()
 
@@ -1095,7 +1099,7 @@ def PathViewer(data: np.ndarray, obs_date: str, timezone: str, Lon: float = 10.8
 
     plt.show()
 
-def TimeViewer(object_name: str,timezone: str = "Europe/Berlin"):
+def TimeViewer(object_name: str,timezone: str = "Europe/Berlin",AbsoluteTime: bool = 1 ,Lon: float = 10.88846, Lat: float = 49.88474, ele: float = 282, Altitude_Threshold: float = 30):
     """
     This function plots the maximal altitude and the time of it with respect to the day of the year. The flat lines of the maximal time are data points beyond the 18:00 and 06:00 border.
 
@@ -1114,11 +1118,11 @@ def TimeViewer(object_name: str,timezone: str = "Europe/Berlin"):
     Simbad_time = Simbad()
     Simbad_time.add_votable_fields("ra", "dec")
 
-    ra, dec = np.float64(Simbad_time.query_object("M101")["ra"].data), np.float64(Simbad_time.query_object("M101")["dec"].data)
+    ra, dec = np.float64(Simbad_time.query_object(object_name)["ra"].data), np.float64(Simbad_time.query_object(object_name)["dec"].data)
 
     max_time = []
     time_over_30_list = []
-
+    Night_time = []
 
     for month, day in zip(months, mid_month_days):
         dt_1 = datetime(2025, month, day, 18, 0, 0)
@@ -1136,12 +1140,35 @@ def TimeViewer(object_name: str,timezone: str = "Europe/Berlin"):
         time_loop = np.linspace(0, 12, 1001)[max_time_loop]
         max_time.append(time_loop)
 
-        time_over_30 = float(time_over_x(np.array((object_name,ra,dec)),selected_date,timezone)[-1])
+        time_over_30 = float(time_over_x(np.array((object_name,ra,dec)),selected_date,timezone,Lon,Lat,ele,Altitude_Threshold)[-1])
         time_over_30_list.append(time_over_30)
 
+        location = EarthLocation.from_geodetic(lon = Lon* u.deg, lat = Lat* u.deg, height = ele*u.m)
+        observer = Observer(location = location, timezone = timezone)
+
+        date_time = Time(selected_date)
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", TargetAlwaysUpWarning)
+            start_time_utc = observer.sun_set_time(date_time, which = "nearest", horizon = -12 * u.deg)
+            end_time_utc = observer.sun_rise_time(date_time, which = "nearest", horizon = -12 * u.deg)
+            time_fail = observer.sun_set_time(date_time, which = "nearest", horizon = -80 * u.deg).to_datetime(timezone = pytz.timezone(timezone))
+
+        tz = pytz.timezone(timezone)
+        start_time = start_time_utc.to_datetime(timezone = tz)
+        end_time = end_time_utc.to_datetime(timezone = tz)
+
+        if isinstance(start_time - end_time, type(time_fail)):
+            p = 0
+        
+        else:
+            delta_T = (end_time - start_time).total_seconds() / (24 * 3600)
+            p = int(delta_T*1440 + 1)
+
+        Night_time.append(p)
 
     max_time_arr = np.array(max_time)
     time_over_30_arr = np.array(time_over_30_list)
+    Night_time_arr = np.array(Night_time)
 
     # print(max_time_arr)
     # print(time_over_30_arr[0])
@@ -1155,10 +1182,15 @@ def TimeViewer(object_name: str,timezone: str = "Europe/Berlin"):
     # Plotting
     fig, ax1 = plt.subplots()
 
-    line1 = ax1.bar(months, time_over_30_arr, color = '#ff7f0e', label = "no. of minutes above 30°",zorder = 1)
+    if AbsoluteTime:
+        line1 = ax1.bar(months, time_over_30_arr, color = '#ff7f0e', label = "no. of minutes above 30°",zorder = 1)
+        ax1.set_ylabel("no. of minutes")
+    else:
+        line1 = ax1.bar(months, time_over_30_arr/Night_time_arr*100, color = '#ff7f0e', label = "percentage of nighttime above 30°",zorder = 1)
+        ax1.set_ylabel("percentage of nighttime")
+        
     ax1.set_xlim(0.5,12.5)
     ax1.set_title(object_name)
-    ax1.set_ylabel("no. of minutes")
 
     ax1.set_xticks(months)
     ax1.set_xticklabels(month_labels,rotation = 45)
