@@ -1373,6 +1373,38 @@ def color_map(data: np.ndarray, t: float, resolution: float):
     plt.tight_layout()
     plt.show()
 
+def GradientMap(t: float, resolution: int, obs_date: str, timezone: str, Lon: float = 10.88846, Lat: float = 49.88474, ele: float = 282, Altitude_Threshold: float = 30):
+    """
+    Create a gradient map from the input data.
+
+    Parameters
+    ----------
+    t : float
+        minutes-hurdle for the contour line.
+    resolution : int
+        The resolution of the output map.
+    obs_date : str
+        The date of observation in the format "YYYY-MM-DD".
+    timezone : str
+        The timezone of the observation location in the format "Europe/Berlin".
+    Lon : float, optional
+        Longitude of the observation location, by default 10.88846 (Dr. Remeis Observatory)
+    Lat : float, optional
+        Latitude of the observation location, by default 49.88474 (Dr. Remeis Observatory)
+    ele : float, optional
+        Elevation of the observation location, by default 282 (Dr. Remeis Observatory)
+    Altitude_Threshold : float, optional
+        Minimum altitude the object must rise above, by default 30
+    Returns
+    -------
+    np.ndarray
+        The generated gradient map.
+    """
+    grid_points = generate_grid(resolution)
+    grid_points_one = add_column_of_ones(grid_points)
+    grid_wto_30 = time_over_x(grid_points_one, obs_date, timezone, Lon, Lat, ele, Altitude_Threshold)
+    color_map(grid_wto_30, t, resolution)
+
 def PlotBestObjects(objects: np.ndarray, obs_date: str, timezone: str, Lon: float = 10.88846, Lat: float = 49.88474, ele: float = 282, min_frac: float = 0.08, max_frac: float = 1, Altitude_Threshold: float = 30, Time_Threshold: float = 120, Galaxies: bool = 0, Nebulae: bool = 0,Supernovae_remnants:bool = 0, Clusters: bool = 0, Stars: bool = 0, All: bool = 0, k: int = 10, colored: int = 5, Altitude_Reference: float = 30, Remove_NaN: bool = 1):
     """
     Function that calculates the best objects for your location and plots them.
