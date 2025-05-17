@@ -1035,7 +1035,8 @@ def PathViewer(data: np.ndarray, obs_date: str, timezone: str, Lon: float = 10.8
     legend_elements = []  # Speichern Sie Element für die Legende
 
     k = min(k, len(data[:, 0]))
-
+    
+    max_H = []
     for n in range(k):
         if n in range(colored):
             colors = ["spring", "summer", "autumn", "winter", "hot"]
@@ -1050,6 +1051,7 @@ def PathViewer(data: np.ndarray, obs_date: str, timezone: str, Lon: float = 10.8
             label = None
 
         A, H = Az_Alt(time_frame, float(data[n, 1]), float(data[n, 2]), Lon, Lat)
+        max_H.append(np.max(H))
         norm = Normalize(vmin = start_jd, vmax = end_jd)
         
         ax.scatter(A, H, c = norm(time_frame), cmap = cmap, s = size, transform = ccrs.PlateCarree(), alpha = alpha, label = label)
@@ -1058,6 +1060,8 @@ def PathViewer(data: np.ndarray, obs_date: str, timezone: str, Lon: float = 10.8
         if n < 5:
             legend_elements.append(Line2D([0], [0], marker = 'o', color = 'w', label = f"{data[n, 0]}", markerfacecolor = cmap(0.25), markersize = 10))
 
+    max_H = np.array(max_H)
+    
     gl = ax.gridlines(draw_labels = True, linestyle="--", color = "#c4c4c4")
     gl.xlocator = FixedLocator(np.arange(-180, 181, 10))
     gl.xformatter = LongitudeFormatter()
@@ -1072,10 +1076,10 @@ def PathViewer(data: np.ndarray, obs_date: str, timezone: str, Lon: float = 10.8
     x_label_position = -20
 
     if Lat >= 0:
-        latitudes = range(round(int(np.min(H)), -1), 91, 10)
+        latitudes = range(round(int(np.min(H)), -1)+10, round(int(np.max(max_H)), -1)+10, 10)
         va = "bottom"
     else:
-        latitudes = range(round(int(np.mean(np.abs(H))), -1), 91, 10)
+        latitudes = range(round(int(np.min(np.abs(H))), -1)+10, round(int(np.max(max_H)), -1)+10, 10)
         va = "bottom"
     for lat in latitudes:
         ax.text(x_label_position, lat, f"{abs(lat)}°", 
