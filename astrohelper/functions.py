@@ -479,7 +479,7 @@ def Type_filter(Objects: np.ndarray, Galaxies: bool = 0, Nebulae: bool = 0,Super
 
     return Objects[mask]
 
-def TelescopeData(FocalLength: float = 750, PixelSize: int = 4.30, x_Pixels: int = 5184, y_Pixels: int = 3456):
+def TelescopeData(FocalLength: float = 750, PixelSize: int = 4.30, x_Pixels: int = 5184, y_Pixels: int = 3456) -> None:
     """
     This function takes your telescope data and saves it as a global variable. To omit using this function you can just declare the following variables:
     ```
@@ -534,7 +534,20 @@ def Fov(L: float) -> float:
     return (206.2648 * (Ps/fl) * L)/60
 
 
-def safe_convert(val):
+def safe_convert(val: any) -> float:
+    """
+    This function tries to convert a value to a float. If it fails, it returns NaN.
+
+    Parameters
+    ----------
+    val : any
+        Value to be converted
+
+    Returns
+    -------
+    float
+        value as float or NaN
+    """
     try:
         return float(val)
     except ValueError:
@@ -791,7 +804,7 @@ def time_over_x(data: np.ndarray, obs_date: str, timezone: str, Lon: float = 10.
         return result
 
 
-def Final_Best(objects: np.ndarray, obs_date: str, timezone, Lon: float = 10.88846, Lat: float = 49.88474, ele: float = 282, min_frac: float = 0.08, max_frac: float = 1, Altitude_Threshold: float = 30, Time_Threshold: float = 120, Galaxies: bool = 0, Nebulae: bool = 0,Supernovae_remnants: bool = 0, Clusters: bool = 0, Stars: bool = 0, All: bool = 0, Remove_NaN: bool = 1):
+def Final_Best(objects: np.ndarray, obs_date: str, timezone, Lon: float = 10.88846, Lat: float = 49.88474, ele: float = 282, min_frac: float = 0.08, max_frac: float = 1, Altitude_Threshold: float = 30, Time_Threshold: float = 120, Galaxies: bool = 0, Nebulae: bool = 0,Supernovae_remnants: bool = 0, Clusters: bool = 0, Stars: bool = 0, All: bool = 0, Remove_NaN: bool = 1) -> np.ndarray:
     """
     This function takes in an array of objects with SIMBAD data, filters for morphological type, calculates surface brightness, ratio, filters for minimal zenith distance, time over altitude and sorts from best to worst.
 
@@ -850,7 +863,7 @@ def Final_Best(objects: np.ndarray, obs_date: str, timezone, Lon: float = 10.888
         objects_filtered = np.array(sorted(objects_filtered, key=lambda x: ( float(x[-1]), float(x[4])), reverse = True),dtype = object)
         return objects_filtered
 
-def AdvancedViewer(data: np.ndarray, obs_date: str, timezone: str, Lon: float = 10.88846, Lat: float = 49.88474, ele: float = 282, k: int = 10, Altitude_Reference: float = 30):
+def AdvancedViewer(data: np.ndarray, obs_date: str, timezone: str, Lon: float = 10.88846, Lat: float = 49.88474, ele: float = 282, k: int = 10, Altitude_Reference: float = 30) -> None:
     """
     This functions plots three diagrams for each object: 1. a time-altitude diagram, 2. a time-azimuth and 3. size in FOV. The ratio of the diagonals (object:FOV) is displayed in percent.
     
@@ -986,7 +999,7 @@ def AdvancedViewer(data: np.ndarray, obs_date: str, timezone: str, Lon: float = 
     plt.ioff()  # Disable interactive mode
     plt.show(block = True)  # Keep all figures open
 
-def PathViewer(data: np.ndarray, obs_date: str, timezone: str, Lon: float = 10.88846, Lat: float = 49.88474, ele: float = 282, k: int = 10, colored: int = 5):
+def PathViewer(data: np.ndarray, obs_date: str, timezone: str, Lon: float = 10.88846, Lat: float = 49.88474, ele: float = 282, k: int = 10, colored: int = 5) -> None:
     """
     This function plots the paths of the objects from `data` onto a stereographic projection of the sky. The paths of the five best objects are coloured, the rest ist b/w. The start and end time are defined by variables `start_time` and `end_time`.
 
@@ -1102,16 +1115,44 @@ def PathViewer(data: np.ndarray, obs_date: str, timezone: str, Lon: float = 10.8
     ax.legend(handles=legend_elements, loc='upper right', fontsize=8)
 
     plt.show()
+    
+def convert_time(value: float) -> str:
+    """
+    This function converts a time value to a 24-hour format string.
+    
+    Parameters
+    ----------
+    value : float
+        time value
 
-def TimeViewer(object_name: str,timezone: str = "Europe/Berlin",AbsoluteTime: bool = 1 ,Lon: float = 10.88846, Lat: float = 49.88474, ele: float = 282, Altitude_Threshold: float = 30):
+    Returns
+    -------
+    str
+        time in HH:MM format
+    """    
+    hours = (value + 18) % 24
+    return f"{int(hours):02d}:00"
+
+def TimeViewer(object_name: str, timezone: str = "Europe/Berlin", AbsoluteTime: bool = 1, Lon: float = 10.88846, Lat: float = 49.88474, ele: float = 282, Altitude_Threshold: float = 30) -> None:
     """
     This function plots the maximal altitude and the time of it with respect to the day of the year. The flat lines of the maximal time are data points beyond the 18:00 and 06:00 border.
 
     Parameters
     ----------
-    objects_name: str, Name of the object to be observed in form of `"M101"`. Watch out for spelling and capital letters, else it may fail.
-    timezone: str, optional
-        your timezone in format `"Europe/Berlin"`, by default "Europe/Berlin"  
+    object_name : str
+        Name of the object to be observed in form of `"M101"`. Watch out for spelling and capital letters, else it may fail.
+    timezone : str, optional
+        your timezone in format `"Europe/Berlin"`, by default "Europe/Berlin"
+    AbsoluteTime : bool, optional
+        if True gives amount of time abov 30° in minutes, if False gives it in percentage, by default 1
+    Lon : float, optional
+        Longitude of observation point, by default 10.88846 (Dr. Remeis Observatory)
+    Lat : float, optional
+        Latitude of observation point, by default 49.88474 (Dr. Remeis Observatory)
+    ele : float, optional
+        elevation of observation point, by default 282 (Dr. Remeis Observatory)
+    Altitude_Threshold : float, optional
+        Minimum altitude the object must rise above, by default 30
     """
 
     cest_tz = pytz.timezone("Europe/Berlin")
@@ -1174,14 +1215,6 @@ def TimeViewer(object_name: str,timezone: str = "Europe/Berlin",AbsoluteTime: bo
     time_over_30_arr = np.array(time_over_30_list)
     Night_time_arr = np.array(Night_time)
 
-    # print(max_time_arr)
-    # print(time_over_30_arr[0])
-
-    def convert_time(value):
-        """Converts time (0-12) to 18:00-6:00 format."""
-        hours = (value + 18) % 24
-        return f"{int(hours):02d}:00"
-
     month_labels = [calendar.month_name[i] for i in range(1, 13)]
     # Plotting
     fig, ax1 = plt.subplots()
@@ -1215,11 +1248,12 @@ def TimeViewer(object_name: str,timezone: str = "Europe/Berlin",AbsoluteTime: bo
 
     lines = [line1, line2]
     labels = [line.get_label() for line in lines]
+    
     plt.legend(lines, labels)
     plt.show()
 
 
-def mapping(objects: list):
+def mapping(objects: list) -> None:
     """
     This function plots objects on a Right ascension in hours (0 - 24) and declination (-90° - 90°).
 
@@ -1227,7 +1261,6 @@ def mapping(objects: list):
     ----------
     objects : list
         List of objects to be plotted
-    
     """
     frame = inspect.currentframe().f_back
     possible_names = [name for name, val in frame.f_globals.items() if val is objects]
@@ -1314,7 +1347,7 @@ def add_column_of_ones(array: np.ndarray) -> np.ndarray:
     new_array = np.hstack((ones_column, array))  # Prepend ones column
     return new_array
 
-def color_map(data: np.ndarray, t: float, resolution: float):
+def color_map(data: np.ndarray, t: float, resolution: float) -> None:
     """Function that takes arrays with position (RA,DEC) and "time above 30° Alt"(t30) values. And plots them in a colormap. Also plots a contour line for a specifiable t30 t.
 
     Parameters
@@ -1431,10 +1464,6 @@ def PlotBestObjects(objects: np.ndarray, obs_date: str, timezone: str, Lon: floa
         Minimum altitude the object must rise above, by default 30
     Time_Threshold : float, optional
         Minimum time the object must be above `Altitude_Threshold`, by default 120
-    Only_Galaxies : bool, optional
-        If True, only galaxies are considered, by default 0
-    k : int, optional
-        number of objects to be plotted, by default 10
     Galaxies : bool, optional
         Filter for galaxies, by default 0
     Nebulae : bool, optional
@@ -1447,6 +1476,8 @@ def PlotBestObjects(objects: np.ndarray, obs_date: str, timezone: str, Lon: floa
         Filter for stars, by default 0
     All : bool, optional
         Filter for all types, by default 0
+    k : int, optional
+        number of objects to be plotted, by default 10
     colored : int, optional
         top `n` objects to be coloured, must be <= `k`, by default 5
     Altitude_Reference : float, optional
