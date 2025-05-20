@@ -18,7 +18,7 @@ ele = 282
 
 ah.TelescopeData() # Function to set your telescope data. (Focal length, Pixel Size, Dimensions)
 
-selected_date = "2024-04-15" # Example date in format "YYYY-MM-DD"
+selected_date = "2025-05-17" # Example date in format "YYYY-MM-DD"
 timezone = "Europe/Berlin" # Example timezone
 
 final_best = ah.Final_Best(data_arr, obs_date = selected_date, Lon = Lon, Lat = Lat, ele = ele, timezone = timezone, min_frac = 0.08, max_frac = 0.8, Galaxies = 1, Nebulae = 1) # Example function call to get the best objects

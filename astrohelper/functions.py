@@ -1048,7 +1048,8 @@ def PathViewer(data: np.ndarray, obs_date: str, timezone: str, Lon: float = 10.8
     legend_elements = []  # Speichern Sie Element für die Legende
 
     k = min(k, len(data[:, 0]))
-
+    
+    max_H = []
     for n in range(k):
         if n in range(colored):
             colors = ["spring", "summer", "autumn", "winter", "hot"]
@@ -1063,6 +1064,7 @@ def PathViewer(data: np.ndarray, obs_date: str, timezone: str, Lon: float = 10.8
             label = None
 
         A, H = Az_Alt(time_frame, float(data[n, 1]), float(data[n, 2]), Lon, Lat)
+        max_H.append(np.max(H))
         norm = Normalize(vmin = start_jd, vmax = end_jd)
         
         ax.scatter(A, H, c = norm(time_frame), cmap = cmap, s = size, transform = ccrs.PlateCarree(), alpha = alpha, label = label)
@@ -1071,6 +1073,8 @@ def PathViewer(data: np.ndarray, obs_date: str, timezone: str, Lon: float = 10.8
         if n < 5:
             legend_elements.append(Line2D([0], [0], marker = 'o', color = 'w', label = f"{data[n, 0]}", markerfacecolor = cmap(0.25), markersize = 10))
 
+    max_H = np.array(max_H)
+    
     gl = ax.gridlines(draw_labels = True, linestyle="--", color = "#c4c4c4")
     gl.xlocator = FixedLocator(np.arange(-180, 181, 10))
     gl.xformatter = LongitudeFormatter()
@@ -1085,10 +1089,10 @@ def PathViewer(data: np.ndarray, obs_date: str, timezone: str, Lon: float = 10.8
     x_label_position = -20
 
     if Lat >= 0:
-        latitudes = range(round(int(np.min(H)), -1), 91, 10)
+        latitudes = range(round(int(np.min(H)), -1)+10, round(int(np.max(max_H)), -1)+10, 10)
         va = "bottom"
     else:
-        latitudes = range(round(int(np.mean(np.abs(H))), -1), 91, 10)
+        latitudes = range(round(int(np.min(np.abs(H))), -1)+10, round(int(np.max(max_H)), -1)+10, 10)
         va = "bottom"
     for lat in latitudes:
         ax.text(x_label_position, lat, f"{abs(lat)}°", 
@@ -1115,7 +1119,7 @@ def PathViewer(data: np.ndarray, obs_date: str, timezone: str, Lon: float = 10.8
 def convert_time(value: float) -> str:
     """
     This function converts a time value to a 24-hour format string.
-
+    
     Parameters
     ----------
     value : float
@@ -1402,7 +1406,39 @@ def color_map(data: np.ndarray, t: float, resolution: float) -> None:
     plt.tight_layout()
     plt.show()
 
-def PlotBestObjects(objects: np.ndarray, obs_date: str, timezone: str, Lon: float = 10.88846, Lat: float = 49.88474, ele: float = 282, min_frac: float = 0.08, max_frac: float = 1, Altitude_Threshold: float = 30, Time_Threshold: float = 120, Galaxies: bool = 0, Nebulae: bool = 0, Supernovae_remnants: bool = 0, Clusters: bool = 0, Stars: bool = 0, All: bool = 0, k: int = 10, colored: int = 5, Altitude_Reference: float = 30, Remove_NaN: bool = 1) -> None:
+def GradientMap(t: float, resolution: int, obs_date: str, timezone: str, Lon: float = 10.88846, Lat: float = 49.88474, ele: float = 282, Altitude_Threshold: float = 30):
+    """
+    Create a gradient map from the input data.
+
+    Parameters
+    ----------
+    t : float
+        minutes-hurdle for the contour line.
+    resolution : int
+        The resolution of the output map.
+    obs_date : str
+        The date of observation in the format "YYYY-MM-DD".
+    timezone : str
+        The timezone of the observation location in the format "Europe/Berlin".
+    Lon : float, optional
+        Longitude of the observation location, by default 10.88846 (Dr. Remeis Observatory)
+    Lat : float, optional
+        Latitude of the observation location, by default 49.88474 (Dr. Remeis Observatory)
+    ele : float, optional
+        Elevation of the observation location, by default 282 (Dr. Remeis Observatory)
+    Altitude_Threshold : float, optional
+        Minimum altitude the object must rise above, by default 30
+    Returns
+    -------
+    np.ndarray
+        The generated gradient map.
+    """
+    grid_points = generate_grid(resolution)
+    grid_points_one = add_column_of_ones(grid_points)
+    grid_wto_30 = time_over_x(grid_points_one, obs_date, timezone, Lon, Lat, ele, Altitude_Threshold)
+    color_map(grid_wto_30, t, resolution)
+
+def PlotBestObjects(objects: np.ndarray, obs_date: str, timezone: str, Lon: float = 10.88846, Lat: float = 49.88474, ele: float = 282, min_frac: float = 0.08, max_frac: float = 1, Altitude_Threshold: float = 30, Time_Threshold: float = 120, Galaxies: bool = 0, Nebulae: bool = 0,Supernovae_remnants:bool = 0, Clusters: bool = 0, Stars: bool = 0, All: bool = 0, k: int = 10, colored: int = 5, Altitude_Reference: float = 30, Remove_NaN: bool = 1):
     """
     Function that calculates the best objects for your location and plots them.
     
