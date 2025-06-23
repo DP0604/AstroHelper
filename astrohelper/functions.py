@@ -1098,7 +1098,6 @@ def PathViewer(data: np.ndarray, obs_date: str, timezone: str, Lon: float = 10.8
     ax.legend(handles=legend_elements, loc='upper right', fontsize=8)
 
     plt.show()
-<<<<<<< HEAD
     
 def convert_time(value: float) -> str:
     """
@@ -1118,10 +1117,6 @@ def convert_time(value: float) -> str:
     return f"{int(hours):02d}:00"
 
 def TimeViewer(object_name: str, timezone: str = "Europe/Berlin", AbsoluteTime: bool = 1, Lon: float = 10.88846, Lat: float = 49.88474, ele: float = 282, Altitude_Threshold: float = 30) -> None:
-=======
-
-def TimeViewer(object_name: str,timezone: str = "Europe/Berlin"):
->>>>>>> parent of dad8761 (Fixed TmeViewer and Chnanged .txt files (#24))
     """
     This function plots the maximal altitude and the time of it with respect to the day of the year. The flat lines of the maximal time are data points beyond the 18:00 and 06:00 border.
 
@@ -1363,7 +1358,6 @@ def color_map(data: np.ndarray, t: float, resolution: float):
     plt.tight_layout()
     plt.show()
 
-<<<<<<< HEAD
 def GradientMap(t: float, resolution: int, obs_date: str, timezone: str, Lon: float = 10.88846, Lat: float = 49.88474, ele: float = 282, Altitude_Threshold: float = 30):
     """
     Create a gradient map from the input data.
@@ -1396,8 +1390,6 @@ def GradientMap(t: float, resolution: int, obs_date: str, timezone: str, Lon: fl
     grid_wto_30 = time_over_x(grid_points_one, obs_date, timezone, Lon, Lat, ele, Altitude_Threshold)
     color_map(grid_wto_30, t, resolution)
 
-=======
->>>>>>> parent of dad8761 (Fixed TmeViewer and Chnanged .txt files (#24))
 def PlotBestObjects(objects: np.ndarray, obs_date: str, timezone: str, Lon: float = 10.88846, Lat: float = 49.88474, ele: float = 282, min_frac: float = 0.08, max_frac: float = 1, Altitude_Threshold: float = 30, Time_Threshold: float = 120, Galaxies: bool = 0, Nebulae: bool = 0,Supernovae_remnants:bool = 0, Clusters: bool = 0, Stars: bool = 0, All: bool = 0, k: int = 10, colored: int = 5, Altitude_Reference: float = 30, Remove_NaN: bool = 1):
     """
     Function that calculates the best objects for your location and plots them.
