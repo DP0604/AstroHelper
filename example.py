@@ -1,3 +1,4 @@
+# %%
 # Example usage
 
 import astrohelper as ah
